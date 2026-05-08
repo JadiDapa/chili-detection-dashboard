@@ -1,0 +1,12 @@
+// Prisma schema — FarmBot Chili Gantry Dashboard
+// Split into multiple files by domain for readability.
+// All files in this directory are merged by Prisma automatically.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

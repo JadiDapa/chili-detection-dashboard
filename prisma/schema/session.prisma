@@ -1,0 +1,45 @@
+enum SessionStatus {
+    PENDING // created in dashboard, not started yet
+    RUNNING // Pi is actively scanning
+    COMPLETED // all plants scanned, summary saved
+    STOPPED // manually stopped before completion
+    ERROR // something went wrong on the Pi
+}
+
+model Session {
+    id          Int     @id @default(autoincrement())
+    title       String
+    description String?
+
+    bedId Int
+    bed   Bed @relation(fields: [bedId], references: [id])
+
+    startTime DateTime?
+    endTime   DateTime?
+    status    SessionStatus @default(PENDING)
+
+    piSessionId String? // 8-char session ID returned by Pi API
+
+    // Summary — written by SessionSyncManager when session_complete fires
+    totalPlants     Int?
+    avgHeightCm     Float?
+    avgMoisturePct  Float?
+    totalWaterSec   Float?
+    harvestReadyIds String? // JSON array e.g. "[3,7,12]"
+
+    // Ripeness totals across all plants (convenience denormalization)
+    totalRipe    Int?
+    totalTurning Int?
+    totalUnripe  Int?
+    totalDamaged Int?
+
+    // Relations
+    captures Captures[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([bedId])
+    @@index([status])
+    @@index([createdAt])
+}

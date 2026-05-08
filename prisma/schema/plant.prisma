@@ -1,0 +1,28 @@
+model Plant {
+    id       Int     @id @default(autoincrement())
+    bedId    Int
+    plantPos Int
+    row      Int
+    col      Int
+    xMm      Float
+    yMm      Float
+    label    String?
+
+    lastRipe        Int?
+    lastTurning     Int?
+    lastUnripe      Int?
+    lastDamaged     Int?
+    lastHeightCm    Float?
+    lastMoisturePct Float?
+    lastScannedAt   DateTime?
+    lastImageUrl    String?
+
+    bed      Bed        @relation(fields: [bedId], references: [id])
+    captures Captures[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([bedId, plantPos])
+    @@unique([bedId, row, col])
+}

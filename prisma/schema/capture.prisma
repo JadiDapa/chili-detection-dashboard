@@ -1,0 +1,30 @@
+model Captures {
+    id        Int     @id @default(autoincrement())
+    title     String
+    sessionId Int
+    session   Session @relation(fields: [sessionId], references: [id])
+    plantId   Int?
+    plant     Plant?  @relation(fields: [plantId], references: [id])
+
+    plantPos Int?
+    row      Int?
+    col      Int?
+
+    imageUrl String
+
+    detected Int @default(0)
+    ripe     Int @default(0)
+    turning  Int @default(0)
+    unripe   Int @default(0)
+    damaged  Int @default(0)
+
+    heightCm    Float?
+    moisturePct Float?
+
+    valveDuration  Float?
+    wateringReason String?
+
+    timestamp DateTime @default(now())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,15 @@
+model Bed {
+    id            Int       @id @default(autoincrement())
+    name          String
+    description   String?
+    piUrl         String
+    rows          Int       @default(2)
+    cols          Int       @default(8)
+    borderMm      Float     @default(650)
+    spacingMm     Float     @default(700)
+    lastUpdatedAt DateTime?
+    plants        Plant[]
+    sessions      Session[]
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+}

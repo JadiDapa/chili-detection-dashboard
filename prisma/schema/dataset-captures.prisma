@@ -1,0 +1,11 @@
+model DatasetCaptures {
+    id             Int      @id @default(autoincrement())
+    title          String
+    datasetSession Int
+    dataset        Dataset  @relation(fields: [datasetSession], references: [id])
+    imageUrl       String
+    heightCm       Float?
+    timestamp      DateTime @default(now())
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+}

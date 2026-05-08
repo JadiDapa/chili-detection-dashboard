@@ -1,0 +1,27 @@
+model Dataset {
+    id          Int       @id @default(autoincrement())
+    title       String
+    description String?
+    startedAt   DateTime
+    endedAt     DateTime?
+    location    String?
+
+    status      DatasetSessionStatus @default(PENDING)
+    captureType CaptureType
+
+    captures DatasetCaptures[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+enum DatasetSessionStatus {
+    PENDING
+    RUNNING
+    COMPLETED
+}
+
+enum CaptureType {
+    IMAGE_CAPTURE
+    VIDEO
+}
