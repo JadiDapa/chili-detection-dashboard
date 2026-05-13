@@ -120,6 +120,29 @@ export type SSEEvent =
       plant_count: number;
     };
 
+// ─── Sensor & servo types ─────────────────────────────────────────────────────
+
+export interface SoilSensor {
+  id: number;
+  label: string;
+  moisture_pct: number;
+}
+export interface SoilSensorData {
+  sensors: SoilSensor[];
+}
+export interface EnvironmentData {
+  temperature_c: number;
+  humidity_pct: number;
+  exhaust_fan_speed_pct: number;
+}
+export interface LightData {
+  lux: number;
+}
+export interface ServoAngles {
+  pan: number;
+  tilt: number;
+}
+
 // ─── Fetch helper ─────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -137,17 +160,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const piApi = {
-  // Sessions
-  listSessions: () => request<PiSession[]>("/sessions"),
-
-  getSession: (id: string) => request<PiSession>(`/sessions/${id}`),
-
-  createSession: (notes?: string) =>
-    request<PiSession>("/sessions", {
-      method: "POST",
-      body: JSON.stringify({ notes: notes ?? null }),
-    }),
-
   startSession: (id: string) =>
     request<{ session_id: string; status: string }>(`/sessions/${id}/start`, {
       method: "POST",
@@ -158,13 +170,22 @@ export const piApi = {
       method: "POST",
     }),
 
-  // Plants
-  getPlants: (sessionId: string) =>
-    request<PiPlantScan[]>(`/plants/${sessionId}`),
-
   // Camera URLs (used directly as <img> src)
   streamUrl: () => `${PI_URL}/camera/stream`,
   snapshotUrl: () => `${PI_URL}/camera/snapshot`,
+
+  // Sensor endpoints
+  getSoilSensors: () => request<SoilSensorData>("/sensors/soil"),
+  getEnvironment: () => request<EnvironmentData>("/sensors/environment"),
+  getLight: () => request<LightData>("/sensors/light"),
+
+  // Servo control
+  getServoAngles: () => request<ServoAngles>("/servo/angles"),
+  setServoAngles: (pan: number, tilt: number) =>
+    request<ServoAngles>("/servo/control", {
+      method: "POST",
+      body: JSON.stringify({ pan, tilt }),
+    }),
 
   // SSE — browser only, returns EventSource handle
   connectEvents: (

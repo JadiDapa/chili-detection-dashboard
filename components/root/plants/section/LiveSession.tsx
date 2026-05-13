@@ -139,7 +139,7 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
         </div>
         {cap.image_url ? (
           <Image
-            src={`${PI_URL}${cap.image_url}`}
+            src={cap.image_url}
             alt={`Plant ${cap.plant_id}`}
             unoptimized
             className="object-cover object-center"
@@ -295,44 +295,13 @@ export default function LiveSession({
     setPhase("creating");
     setError(null);
     setCurrentPlantId(null);
+    setScanCount(0);
+    setAvgHeight(null);
+    setCaptures([]);
 
     try {
       await piApi.startSession(sessionId);
 
-      const existingScans = await piApi.getPlants(sessionId);
-      if (existingScans.length > 0) {
-        const hydratedCaptures: LiveCapture[] = existingScans.map((scan) => ({
-          plant_id: scan.plant_id,
-          image_url: scan.image_url,
-          classes: {
-            Ripe: scan.ripe_count ?? 0,
-            Unripe: scan.unripe_count ?? 0,
-            Turning: scan.turning_count ?? 0,
-            Broken: scan.broken_count ?? 0,
-          },
-          height_cm: scan.height_cm ?? null,
-          moisture_pct: scan.moisture_pct ?? null,
-        }));
-        setCaptures(hydratedCaptures);
-        setScanCount(existingScans.length);
-
-        const heights = existingScans
-          .map((s) => s.height_cm)
-          .filter((h): h is number => h != null);
-        if (heights.length > 0) {
-          setAvgHeight(
-            Math.round(
-              (heights.reduce((a, b) => a + b, 0) / heights.length) * 10,
-            ) / 10,
-          );
-        }
-      } else {
-        setScanCount(0);
-        setAvgHeight(null);
-        setCaptures([]);
-      }
-
-      // 2. Connect SSE — new events append on top of hydrated data
       const es = piApi.connectEvents(sessionId, handleEvent, () => {
         setPhase("error");
         setError(

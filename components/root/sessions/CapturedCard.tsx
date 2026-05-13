@@ -15,7 +15,7 @@ export default function CapturedCard({
         <Image
           unoptimized
           src={capture.imageUrl}
-          alt={capture.title}
+          alt={capture.title ?? ""}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
@@ -35,10 +35,10 @@ export default function CapturedCard({
 
         {/* STATS */}
         <div className="flex flex-wrap gap-1 text-xs">
-          <StatBadge label="Detected" value={capture.detected} />
-          <StatBadge label="Ripe" value={capture.ripe} color="green" />
-          <StatBadge label="Unripe" value={capture.unripe} color="yellow" />
-          <StatBadge label="Damaged" value={capture.damaged} color="red" />
+          <StatBadge label="Total" value={capture.totalFruits} />
+          <StatBadge label="Ripe" value={capture.ripeCount} color="green" />
+          <StatBadge label="Unripe" value={capture.unripeCount} color="yellow" />
+          <StatBadge label="Broken" value={capture.brokenCount} color="red" />
         </div>
       </div>
     </div>

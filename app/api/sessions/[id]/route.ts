@@ -40,8 +40,7 @@ export async function PUT(
 
     const body = await req.json();
 
-    const { title, description, startTime, endTime, status, row, column } =
-      body;
+    const { title, notes, startedAt, completedAt, status } = body;
 
     const result = await prisma.session.update({
       where: {
@@ -49,12 +48,10 @@ export async function PUT(
       },
       data: {
         title,
-        description,
-        startTime,
-        endTime,
+        notes,
+        startedAt,
+        completedAt,
         status,
-        row,
-        column,
       },
     });
 

@@ -1,11 +1,8 @@
 import { cn } from "@/lib/utils";
 import { ClassCount } from "../plants/section/LiveSession";
 import { Loader2, RefreshCw, Play } from "lucide-react";
-import {
-  formatTime,
-  piRipenessToClassCount,
-} from "../plants/section/SessionSidebar";
-import { PiSession } from "@/lib/pi";
+import { formatTime, sessionToClassCount } from "../plants/section/SessionSidebar";
+import { SessionType } from "@/server/validators/session.validator";
 
 type FruitClass = "Ripe" | "Unripe" | "Turning" | "Broken";
 
@@ -48,7 +45,7 @@ export default function SessionList({
   onRefresh,
   disableStart,
 }: {
-  sessions: PiSession[];
+  sessions: SessionType[];
   loading: boolean;
   onSelectSession: (id: string) => void;
   onStartSession: () => void;
@@ -78,12 +75,13 @@ export default function SessionList({
 
       {!loading &&
         sessions.map((session, idx) => {
-          const classes = piRipenessToClassCount(session.ripeness);
+          const classes = sessionToClassCount(session);
           const total = Object.values(classes).reduce((a, b) => a + b, 0);
+          const isComplete = session.status === "COMPLETED";
           return (
             <button
-              key={session.session_id}
-              onClick={() => onSelectSession(session.session_id)}
+              key={session.id}
+              onClick={() => onSelectSession(String(session.id))}
               className="bg-muted group relative flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-zinc-800/60"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-zinc-300 group-hover:bg-zinc-700">
@@ -92,33 +90,30 @@ export default function SessionList({
               <div className="flex w-full min-w-0 flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-foreground truncate text-base font-semibold">
-                    Session {session.session_id}
+                    Session #{session.id}
                   </span>
                   <span className="text-muted-foreground shrink-0 text-[10px]">
-                    {formatTime(session.started_at)}
+                    {formatTime(session.startedAt)}
                   </span>
                 </div>
-                {/* Status badge for non-complete sessions */}
-                {session.status !== "complete" && (
+                {!isComplete && (
                   <span
                     className={cn(
                       "w-fit rounded px-1.5 py-0.5 text-[10px] font-medium",
-                      session.status === "running" &&
+                      session.status === "RUNNING" &&
                         "bg-emerald-600/20 text-emerald-400",
-                      session.status === "error" &&
+                      session.status === "ERROR" &&
                         "bg-red-600/20 text-red-400",
-                      session.status === "stopped" &&
+                      session.status === "STOPPED" &&
                         "bg-zinc-600/20 text-zinc-400",
-                      session.status === "created" &&
+                      session.status === "PENDING" &&
                         "bg-zinc-600/20 text-zinc-400",
                     )}
                   >
-                    {session.status}
+                    {session.status.toLowerCase()}
                   </span>
                 )}
-                {session.status === "complete" && total > 0 && (
-                  <ClassGrid classes={classes} />
-                )}
+                {isComplete && total > 0 && <ClassGrid classes={classes} />}
               </div>
             </button>
           );
@@ -130,7 +125,6 @@ export default function SessionList({
         <span className="h-px w-full bg-zinc-200 dark:bg-zinc-800" />
       </div>
 
-      {/* Start Session Card */}
       <button
         onClick={onStartSession}
         disabled={disableStart}

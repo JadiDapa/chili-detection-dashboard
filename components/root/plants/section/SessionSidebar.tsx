@@ -4,37 +4,31 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { SlidersHorizontal, AlignJustify, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { piApi, PiSession } from "@/lib/pi";
+import { SessionType } from "@/server/validators/session.validator";
+import { createSessionAction } from "@/app/actions/sessions.actions";
 import LiveSession from "./LiveSession";
 import SessionDetail from "./SessionDetail";
 import DatePicker from "./DatePicker";
 import SessionList from "../../sessions/SessionList";
+import { ClassCount } from "./LiveSession";
 
-interface ClassCount {
-  Ripe: number;
-  Unripe: number;
-  Turning: number;
-  Broken: number;
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
 
-/** Map Pi lowercase class keys → display ClassCount */
-export function piRipenessToClassCount(
-  ripeness: PiSession["ripeness"],
-): ClassCount {
+export function sessionToClassCount(session: SessionType): ClassCount {
   return {
-    Ripe: ripeness?.ripe ?? 0,
-    Unripe: ripeness?.unripe ?? 0,
-    Turning: ripeness?.turning ?? 0,
-    Broken: ripeness?.broken ?? 0,
+    Ripe: session.totalRipe ?? 0,
+    Unripe: session.totalUnripe ?? 0,
+    Turning: session.totalTurning ?? 0,
+    Broken: session.totalDamaged ?? 0,
   };
 }
 
-export function formatTime(iso: string | null): string {
+export function formatTime(iso: string | Date | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString([], {
     hour: "2-digit",
@@ -42,71 +36,62 @@ export function formatTime(iso: string | null): string {
   });
 }
 
-function sessionDate(session: PiSession): Date {
-  const raw = session.created_at ?? session.started_at;
-  const d = raw ? new Date(raw) : new Date();
+function sessionDate(session: SessionType): Date {
+  const d = new Date(session.createdAt);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
 type View = "list" | "detail" | "live";
 
-export default function PlantSessionSidebar() {
-  const [startingSessionId, setStartingSessionId] = useState<string | null>(
-    null,
-  );
+// ─── Component ────────────────────────────────────────────────────────────────
 
+export default function PlantSessionSidebar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
-
   const section = params?.section as string | undefined;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
   const [selectedDate, setSelectedDate] = useState<Date>(today);
 
-  // ── Real API state ──
-  const [allSessions, setAllSessions] = useState<PiSession[]>([]);
+  const [allSessions, setAllSessions] = useState<SessionType[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
 
   const sessionParam = searchParams.get("session");
 
-  // Fetch all sessions from Pi
   const fetchSessions = useCallback(async () => {
     setLoadingSessions(true);
     try {
-      const data = await piApi.listSessions();
+      const res = await fetch("/api/sessions");
+      const data: SessionType[] = await res.json();
       setAllSessions(data);
     } catch {
-      // Pi unreachable — keep empty list, user can retry
+      // dashboard unreachable — keep empty list
     } finally {
       setLoadingSessions(false);
     }
   }, []);
 
-  // Load on mount and when coming back from live session
   useEffect(() => {
     fetchSessions();
   }, [fetchSessions]);
 
-  // Filter sessions by selected date (client-side)
   const sessionsForDate = allSessions.filter((s) =>
     isSameDay(sessionDate(s), selectedDate),
   );
 
   const activeSession = sessionParam
-    ? (allSessions.find((s) => s.session_id === sessionParam) ?? null)
+    ? (allSessions.find((s) => String(s.id) === sessionParam) ?? null)
     : null;
 
   const isLiveSession =
-    !!activeSession &&
-    ["created", "running", "stopped", "error"].includes(activeSession.status);
+    !!activeSession && ["PENDING", "RUNNING"].includes(activeSession.status);
 
   const view: View = !sessionParam ? "list" : isLiveSession ? "live" : "detail";
 
-  const hasRunningSession = allSessions.some((s) => s.status === "running");
+  const hasRunningSession = allSessions.some((s) => s.status === "RUNNING");
 
   function handleSelectSession(id: string) {
     const p = new URLSearchParams(searchParams.toString());
@@ -122,33 +107,27 @@ export default function PlantSessionSidebar() {
 
   async function handleStartSession() {
     try {
-      const session = await piApi.createSession();
-
-      setStartingSessionId(session.session_id);
-      await fetchSessions();
-
+      const { id } = await createSessionAction(1);
       const p = new URLSearchParams(searchParams.toString());
-      p.set("session", session.session_id);
+      p.set("session", String(id));
       router.push(`?${p.toString()}`);
     } catch (e) {
-      console.error("Failed to start session", e);
+      console.error("Failed to create session", e);
     }
   }
+
   function handleDateSelect(date: Date) {
     setSelectedDate(date);
     handleBack();
   }
 
-  // When live session ends, refresh the list so the new session appears
   function handleLiveBack() {
-    setStartingSessionId(null);
     handleBack();
     fetchSessions();
   }
 
   return (
     <div className="bg-card text-foreground flex h-[120vh] w-full flex-2 flex-col rounded-xl px-3">
-      {/* Header */}
       {view === "list" && (
         <div className="flex items-center justify-between px-1 pt-5 pb-3">
           <div>
@@ -180,12 +159,10 @@ export default function PlantSessionSidebar() {
         </div>
       )}
 
-      {/* Date Picker */}
       {view === "list" && (
         <DatePicker selectedDate={selectedDate} onSelect={handleDateSelect} />
       )}
 
-      {/* Content */}
       <ScrollArea className="min-h-0 flex-1">
         <div className="pb-4">
           {view === "list" && (
@@ -217,7 +194,7 @@ export default function PlantSessionSidebar() {
 
           {view === "live" && activeSession && (
             <LiveSession
-              sessionId={activeSession.session_id}
+              sessionId={String(activeSession.id)}
               onBack={handleLiveBack}
             />
           )}

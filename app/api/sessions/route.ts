@@ -23,14 +23,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { title, description, startTime, endTime, status } = await req.json();
+    const { title, notes, startedAt, completedAt, status } = await req.json();
 
     const result = await prisma.session.create({
       data: {
         title,
-        description,
-        startTime,
-        endTime,
+        notes,
+        startedAt,
+        completedAt,
         status,
       },
     });

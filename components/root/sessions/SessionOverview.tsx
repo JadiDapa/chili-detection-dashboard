@@ -3,20 +3,20 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { SessionType } from "@/lib/types/session";
 import { format, intervalToDuration } from "date-fns";
-import { Clock, MapPin, Leaf, AlertTriangle, CircleCheck } from "lucide-react";
+import { Clock, Leaf, AlertTriangle, CircleCheck } from "lucide-react";
 
 export default function SessionOverview({ session }: { session: SessionType }) {
   const captures = session?.captures ?? [];
 
-  const readyToHarvest = captures.filter((c) => c.ripe > 3).length;
-  const ripeTotal = captures.reduce((sum, c) => sum + c.ripe, 0);
-  const unripeTotal = captures.reduce((sum, c) => sum + c.unripe, 0);
-  const damagedTotal = captures.reduce((sum, c) => sum + c.damaged, 0);
+  const readyToHarvest = captures.filter((c) => c.ripeCount > 3).length;
+  const ripeTotal = captures.reduce((sum, c) => sum + c.ripeCount, 0);
+  const unripeTotal = captures.reduce((sum, c) => sum + c.unripeCount, 0);
+  const damagedTotal = captures.reduce((sum, c) => sum + c.brokenCount, 0);
 
   const runningTime =
-    session?.status !== "PENDING" && session?.startTime
+    session?.status !== "PENDING" && session?.startedAt
       ? intervalToDuration({
-          start: new Date(session.startTime),
+          start: new Date(session.startedAt),
           end: new Date(),
         })
       : null;
@@ -56,8 +56,8 @@ export default function SessionOverview({ session }: { session: SessionType }) {
             <p>
               Start:
               <span className="block font-medium">
-                {session.startTime
-                  ? format(new Date(session.startTime), "HH:mm:ss")
+                {session.startedAt
+                  ? format(new Date(session.startedAt), "HH:mm:ss")
                   : "-"}
               </span>
             </p>
@@ -65,8 +65,8 @@ export default function SessionOverview({ session }: { session: SessionType }) {
             <p>
               End:
               <span className="block font-medium">
-                {session.endTime
-                  ? format(new Date(session.endTime), "HH:mm:ss")
+                {session.completedAt
+                  ? format(new Date(session.completedAt), "HH:mm:ss")
                   : "-"}
               </span>
             </p>
@@ -78,31 +78,6 @@ export default function SessionOverview({ session }: { session: SessionType }) {
               s
             </p>
           )}
-        </div>
-
-        <Separator />
-
-        {/* Position */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="text-muted-foreground h-4 w-4" />
-            Position
-          </div>
-
-          <div className="flex gap-6 text-sm">
-            <p>
-              Row
-              <span className="text-primary block text-lg font-semibold">
-                {session?.row}
-              </span>
-            </p>
-            <p>
-              Column
-              <span className="block text-lg font-semibold">
-                {session?.column}
-              </span>
-            </p>
-          </div>
         </div>
 
         <Separator />

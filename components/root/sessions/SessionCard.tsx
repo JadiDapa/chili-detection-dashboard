@@ -12,12 +12,12 @@ export default function SessionCard({ session }: { session: SessionType }) {
   const captures = session.captures ?? [];
 
   // ---- Aggregations ----
-  const readyToHarvest = captures.filter((c) => c.ripe > 3).length;
-  const ripeTotal = captures.reduce((s, c) => s + c.ripe, 0);
-  const unripeTotal = captures.reduce((s, c) => s + c.unripe, 0);
-  const damagedTotal = captures.reduce((s, c) => s + c.damaged, 0);
+  const readyToHarvest = captures.filter((c) => c.ripeCount > 3).length;
+  const ripeTotal = captures.reduce((s, c) => s + c.ripeCount, 0);
+  const unripeTotal = captures.reduce((s, c) => s + c.unripeCount, 0);
+  const damagedTotal = captures.reduce((s, c) => s + c.brokenCount, 0);
 
-  const avatarLetter = session.title.charAt(0).toUpperCase();
+  const avatarLetter = (session.title ?? "?").charAt(0).toUpperCase();
 
   // ---- Status UI mapping ----
   const statusVariant =
@@ -51,10 +51,10 @@ export default function SessionCard({ session }: { session: SessionType }) {
             </Badge>
           </div>
 
-          {/* Description */}
-          {session.description && (
+          {/* Notes */}
+          {session.notes && (
             <p className="text-muted-foreground line-clamp-2 text-sm">
-              {session.description}
+              {session.notes}
             </p>
           )}
 
@@ -85,7 +85,9 @@ export default function SessionCard({ session }: { session: SessionType }) {
           {/* Footer */}
           <div className="flex items-center justify-between border-t pt-4">
             <div className="text-muted-foreground text-xs">
-              Grid {session.row ?? 0} × {session.column ?? 0}
+              {session.startedAt
+                ? format(session.startedAt, "HH:mm")
+                : "Not started"}
             </div>
 
             <div className="flex gap-2">

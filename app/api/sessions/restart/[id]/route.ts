@@ -12,11 +12,9 @@ export async function PUT(
       const session = await tx.session.update({
         where: { id: Number(id) },
         data: {
-          startTime: null,
-          endTime: null,
+          startedAt: null,
+          completedAt: null,
           status: "PENDING",
-          row: 0,
-          column: 0,
         },
       });
 

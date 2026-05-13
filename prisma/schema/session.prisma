@@ -7,18 +7,17 @@ enum SessionStatus {
 }
 
 model Session {
-    id          Int     @id @default(autoincrement())
-    title       String
-    description String?
+    id         Int     @id @default(autoincrement())
+    title      String?
+    notes      String?
+    externalId String? @unique // RPi's own session_id
 
     bedId Int
     bed   Bed @relation(fields: [bedId], references: [id])
 
-    startTime DateTime?
-    endTime   DateTime?
-    status    SessionStatus @default(PENDING)
-
-    piSessionId String? // 8-char session ID returned by Pi API
+    startedAt   DateTime?
+    completedAt DateTime?
+    status      SessionStatus @default(PENDING)
 
     // Summary — written by SessionSyncManager when session_complete fires
     totalPlants     Int?
