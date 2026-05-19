@@ -203,7 +203,8 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
 
 interface LiveSessionProps {
   onBack: () => void;
-  sessionId: string; // ← pass in from parent
+  sessionId: string;
+  scanConfig?: Record<string, unknown> | null;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -211,8 +212,9 @@ interface LiveSessionProps {
 export default function LiveSession({
   onBack,
   sessionId: initialSessionId,
+  scanConfig,
 }: LiveSessionProps) {
-  const [sessionId, setSessionId] = useState<string>(initialSessionId);
+  const sessionId = initialSessionId;
 
   const TOTAL_PLANTS = 16;
 
@@ -300,7 +302,7 @@ export default function LiveSession({
     setCaptures([]);
 
     try {
-      await piApi.startSession(sessionId);
+      await piApi.startSession(sessionId, scanConfig);
 
       const es = piApi.connectEvents(sessionId, handleEvent, () => {
         setPhase("error");

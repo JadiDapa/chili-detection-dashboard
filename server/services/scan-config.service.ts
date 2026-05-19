@@ -1,0 +1,109 @@
+import { Prisma } from "@/generated/prisma";
+import { prisma } from "@/lib/prisma";
+
+export type CaptureOffsetData = {
+  z_mm: number;
+  x_offset_mm: number;
+  y_offset_mm: number;
+  servo_pan: number;
+  servo_tilt: number;
+};
+
+export type ScanConfigData = {
+  name: string;
+  description?: string | null;
+  isDefault?: boolean;
+  cols?: number;
+  rows?: number;
+  gapXMm?: number;
+  gapYMm?: number;
+  paddingXMm?: number;
+  paddingYMm?: number;
+  captureOffsets: CaptureOffsetData[];
+};
+
+export const ScanConfigService = {
+  async list() {
+    return prisma.scanConfig.findMany({
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    });
+  },
+
+  async getById(id: number) {
+    return prisma.scanConfig.findUnique({ where: { id } });
+  },
+
+  async getDefault() {
+    return prisma.scanConfig.findFirst({ where: { isDefault: true } });
+  },
+
+  async create(data: ScanConfigData) {
+    return prisma.scanConfig.create({
+      data: {
+        name: data.name,
+        description: data.description ?? null,
+        isDefault: data.isDefault ?? false,
+        cols: data.cols ?? 8,
+        rows: data.rows ?? 2,
+        gapXMm: data.gapXMm ?? 750.0,
+        gapYMm: data.gapYMm ?? 1000.0,
+        paddingXMm: data.paddingXMm ?? 0.0,
+        paddingYMm: data.paddingYMm ?? 0.0,
+        captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
+      },
+    });
+  },
+
+  async update(id: number, data: Partial<ScanConfigData>) {
+    return prisma.scanConfig.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
+        ...(data.cols !== undefined && { cols: data.cols }),
+        ...(data.rows !== undefined && { rows: data.rows }),
+        ...(data.gapXMm !== undefined && { gapXMm: data.gapXMm }),
+        ...(data.gapYMm !== undefined && { gapYMm: data.gapYMm }),
+        ...(data.paddingXMm !== undefined && { paddingXMm: data.paddingXMm }),
+        ...(data.paddingYMm !== undefined && { paddingYMm: data.paddingYMm }),
+        ...(data.captureOffsets !== undefined && {
+          captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
+        }),
+      },
+    });
+  },
+
+  async delete(id: number) {
+    return prisma.scanConfig.delete({ where: { id } });
+  },
+
+  async setDefault(id: number) {
+    return prisma.$transaction(async (tx) => {
+      await tx.scanConfig.updateMany({ data: { isDefault: false } });
+      return tx.scanConfig.update({ where: { id }, data: { isDefault: true } });
+    });
+  },
+
+  // Build the RPi-compatible snapshot object from a DB record.
+  // Uses snake_case field names to match the RPi Pydantic ScanConfig model.
+  buildSnapshot(config: {
+    cols: number;
+    rows: number;
+    gapXMm: number;
+    gapYMm: number;
+    paddingXMm: number;
+    paddingYMm: number;
+    captureOffsets: Prisma.JsonValue;
+  }): Prisma.InputJsonValue {
+    return {
+      cols: config.cols,
+      rows: config.rows,
+      gap_x_mm: config.gapXMm,
+      gap_y_mm: config.gapYMm,
+      padding_x_mm: config.paddingXMm,
+      padding_y_mm: config.paddingYMm,
+      capture_offsets: config.captureOffsets,
+    } as Prisma.InputJsonValue;
+  },
+};

@@ -1,7 +1,8 @@
-import { SessionStatus } from "@/generated/prisma";
+import { SessionStatus, Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { PiPlantScan } from "@/lib/pi";
 import { fileUploadFromUrl } from "@/lib/file-upload";
+import { ScanConfigService } from "@/server/services/scan-config.service";
 
 export type PiSyncPayload = {
   session_id: string;
@@ -69,9 +70,27 @@ export const SessionService = {
     });
   },
 
-  async create(bedId: number, notes?: string | null) {
+  async create(bedId: number, notes?: string | null, scanConfigId?: number | null) {
+    // Resolve which config to use: explicit id → fallback to default → none
+    let resolvedConfigId = scanConfigId ?? null;
+    if (resolvedConfigId == null) {
+      const def = await prisma.scanConfig.findFirst({ where: { isDefault: true } });
+      if (def) resolvedConfigId = def.id;
+    }
+
+    let scanConfigSnapshot: Prisma.InputJsonValue | undefined;
+    if (resolvedConfigId != null) {
+      const config = await prisma.scanConfig.findUnique({ where: { id: resolvedConfigId } });
+      if (config) scanConfigSnapshot = ScanConfigService.buildSnapshot(config);
+    }
+
     return prisma.session.create({
-      data: { bedId, notes: notes ?? null },
+      data: {
+        bedId,
+        notes: notes ?? null,
+        scanConfigId: resolvedConfigId,
+        ...(scanConfigSnapshot !== undefined && { scanConfigSnapshot }),
+      },
     });
   },
 

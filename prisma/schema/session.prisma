@@ -32,6 +32,11 @@ model Session {
     totalUnripe  Int?
     totalDamaged Int?
 
+    // Scan configuration — which preset was used and a frozen copy at session-start time
+    scanConfigId       Int?
+    scanConfig         ScanConfig? @relation(fields: [scanConfigId], references: [id])
+    scanConfigSnapshot Json?
+
     // Relations
     captures Captures[]
 

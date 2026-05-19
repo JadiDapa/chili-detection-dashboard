@@ -160,9 +160,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const piApi = {
-  startSession: (id: string) =>
+  startSession: (id: string, config?: Record<string, unknown> | null) =>
     request<{ session_id: string; status: string }>(`/sessions/${id}/start`, {
       method: "POST",
+      ...(config && { body: JSON.stringify({ scan_config: config }) }),
     }),
 
   stopSession: (id: string) =>

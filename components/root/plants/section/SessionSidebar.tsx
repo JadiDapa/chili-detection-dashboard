@@ -11,6 +11,7 @@ import SessionDetail from "./SessionDetail";
 import DatePicker from "./DatePicker";
 import SessionList from "../../sessions/SessionList";
 import { ClassCount } from "./LiveSession";
+import StartSessionDialog from "@/components/root/scan-configs/StartSessionDialog";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,9 @@ export default function PlantSessionSidebar() {
 
   const hasRunningSession = allSessions.some((s) => s.status === "RUNNING");
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [startPending, setStartPending] = useState(false);
+
   function handleSelectSession(id: string) {
     const p = new URLSearchParams(searchParams.toString());
     p.set("session", id);
@@ -105,14 +109,22 @@ export default function PlantSessionSidebar() {
     router.push(`?${p.toString()}`);
   }
 
-  async function handleStartSession() {
+  function handleStartClick() {
+    setDialogOpen(true);
+  }
+
+  async function handleStartSession(configId: number | null) {
+    setStartPending(true);
     try {
-      const { id } = await createSessionAction(1);
+      const { id } = await createSessionAction(1, undefined, configId ?? undefined);
+      setDialogOpen(false);
       const p = new URLSearchParams(searchParams.toString());
       p.set("session", String(id));
       router.push(`?${p.toString()}`);
     } catch (e) {
       console.error("Failed to create session", e);
+    } finally {
+      setStartPending(false);
     }
   }
 
@@ -170,7 +182,7 @@ export default function PlantSessionSidebar() {
               sessions={sessionsForDate}
               loading={loadingSessions}
               onSelectSession={handleSelectSession}
-              onStartSession={handleStartSession}
+              onStartSession={handleStartClick}
               onRefresh={fetchSessions}
               disableStart={hasRunningSession}
             />
@@ -196,10 +208,20 @@ export default function PlantSessionSidebar() {
             <LiveSession
               sessionId={String(activeSession.id)}
               onBack={handleLiveBack}
+              scanConfig={
+                activeSession.scanConfigSnapshot as Record<string, unknown> | null
+              }
             />
           )}
         </div>
       </ScrollArea>
+
+      <StartSessionDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onConfirm={handleStartSession}
+        isPending={startPending}
+      />
     </div>
   );
 }
