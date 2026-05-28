@@ -64,6 +64,7 @@ export interface PiPlantScan {
 // ─── SSE event union ──────────────────────────────────────────────────────────
 
 export type SSEEvent =
+  // ── Shared ──
   | {
       type: "session_started";
       session_id: string;
@@ -76,6 +77,19 @@ export type SSEEvent =
       position: { x: number; y: number; z: number };
     }
   | {
+      type: "session_complete";
+      session_id: string;
+      summary: Record<string, unknown>;
+    }
+  | { type: "session_error"; session_id: string; message: string }
+  | {
+      type: "session_reconnect";
+      session_id: string;
+      status: string;
+      plant_count: number;
+    }
+  // ── SCAN session events ──
+  | {
       type: "gantry_moved";
       session_id: string;
       plant_id: number;
@@ -87,37 +101,58 @@ export type SSEEvent =
     }
   | {
       type: "plant_scanned";
+      session_id: string;
       plant_id: number;
       image_url: string;
       detections: PiDetection[];
-      height_cm?: number;
-      moisture_pct?: number;
+      total_fruits: number;
+    }
+  // ── WATERING session events ──
+  | {
+      type: "tof_sweep_started";
+      session_id: string;
+      total_positions: number;
     }
   | {
-      type: "sensor_read";
+      type: "tof_position_scanned";
       session_id: string;
-      plant_id: number;
+      row: number;
+      col: number;
       height_cm: number;
-      moisture_pct: number;
+      position: number;
+      total: number;
     }
   | {
-      type: "plant_watered";
+      type: "tof_sweep_complete";
       session_id: string;
-      plant_id: number;
-      valve_duration_sec: number;
-      reason: string;
+      max_height_cm: number;
     }
   | {
-      type: "session_complete";
+      type: "moisture_read_before";
       session_id: string;
-      summary: Record<string, unknown>;
+      sensors: [number, number, number];
+      avg_pct: number;
     }
-  | { type: "session_error"; session_id: string; message: string }
   | {
-      type: "session_reconnect";
+      type: "fuzzy_computed";
       session_id: string;
-      status: string;
-      plant_count: number;
+      max_height_cm: number;
+      avg_moisture_pct: number;
+      duration_sec: number;
+    }
+  | {
+      type: "watering_stop";
+      session_id: string;
+      stop_index: number;
+      x_mm: number;
+      y_mm: number;
+      duration_sec: number;
+    }
+  | {
+      type: "moisture_read_after";
+      session_id: string;
+      sensors: [number, number, number];
+      avg_pct: number;
     };
 
 // ─── Sensor & servo types ─────────────────────────────────────────────────────
@@ -160,10 +195,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const piApi = {
-  startSession: (id: string, config?: Record<string, unknown> | null) =>
+  startSession: (
+    id: string,
+    sessionType: "SCAN" | "WATERING" = "SCAN",
+    config?: Record<string, unknown> | null,
+  ) =>
     request<{ session_id: string; status: string }>(`/sessions/${id}/start`, {
       method: "POST",
-      ...(config && { body: JSON.stringify({ scan_config: config }) }),
+      body: JSON.stringify({
+        session_type: sessionType,
+        ...(sessionType === "SCAN" && config ? { scan_config: config } : {}),
+        ...(sessionType === "WATERING" && config ? { watering_config: config } : {}),
+      }),
     }),
 
   stopSession: (id: string) =>

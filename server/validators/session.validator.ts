@@ -4,6 +4,7 @@ import { z } from "zod";
 export type SessionType = Prisma.SessionGetPayload<{
   include: {
     captures: true;
+    wateringStops: true;
   };
 }>;
 
@@ -23,7 +24,12 @@ export const SessionSchema = z.object({
 });
 
 /* ================= DTOs ================= */
-export const CreateSessionSchema = SessionSchema.extend({});
+export const CreateSessionSchema = z.object({
+  notes: z.string().optional(),
+  sessionType: z.enum(["SCAN", "WATERING"]).default("SCAN"),
+  scanConfigId: z.number().int().optional().nullable(),
+  wateringConfigId: z.number().int().optional().nullable(),
+});
 export const UpdateSessionSchema = SessionSchema.partial().extend({
   status: z.enum(SessionStatus).optional(),
 });

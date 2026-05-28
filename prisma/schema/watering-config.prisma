@@ -1,0 +1,27 @@
+model WateringConfig {
+    id          Int     @id @default(autoincrement())
+    name        String
+    description String?
+    isDefault   Boolean @default(false)
+
+    cols Int @default(8)
+    rows Int @default(2)
+
+    gapXMm     Float @default(750.0)
+    gapYMm     Float @default(1000.0)
+    paddingXMm Float @default(0.0)
+    paddingYMm Float @default(0.0)
+
+    zMaxMm          Float @default(0.0)   // Z height for TOF sweep (raised to maximum)
+    zWaterMm        Float @default(50.0)  // Z working height during valve open
+    tofSamples      Int   @default(5)     // TOF readings taken per plant position
+    sweepSpeedMmSec Float @default(150.0)
+    waterSpeedMmSec Float @default(100.0)
+
+    sessions Session[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([isDefault])
+}

@@ -1,8 +1,9 @@
-import { SessionStatus, Prisma } from "@/generated/prisma";
+import { SessionStatus, SessionType, Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { PiPlantScan } from "@/lib/pi";
 import { fileUploadFromUrl } from "@/lib/file-upload";
 import { ScanConfigService } from "@/server/services/scan-config.service";
+import { WateringService } from "@/server/services/watering.service";
 
 export type PiSyncPayload = {
   session_id: string;
@@ -59,37 +60,71 @@ export const SessionService = {
   async list() {
     return prisma.session.findMany({
       orderBy: { createdAt: "desc" },
-      include: { captures: { orderBy: { plantIndex: "asc" } } },
+      include: {
+        captures: { orderBy: { plantIndex: "asc" } },
+        wateringStops: { orderBy: { stopIndex: "asc" } },
+      },
     });
   },
 
   async getById(id: number) {
     return prisma.session.findUnique({
       where: { id },
-      include: { captures: { orderBy: { plantIndex: "asc" } } },
+      include: {
+        captures: { orderBy: { plantIndex: "asc" } },
+        wateringStops: { orderBy: { stopIndex: "asc" } },
+      },
     });
   },
 
-  async create(bedId: number, notes?: string | null, scanConfigId?: number | null) {
-    // Resolve which config to use: explicit id → fallback to default → none
-    let resolvedConfigId = scanConfigId ?? null;
-    if (resolvedConfigId == null) {
-      const def = await prisma.scanConfig.findFirst({ where: { isDefault: true } });
-      if (def) resolvedConfigId = def.id;
-    }
+  async create(
+    bedId: number,
+    notes?: string | null,
+    scanConfigId?: number | null,
+    sessionType?: "SCAN" | "WATERING",
+    wateringConfigId?: number | null,
+  ) {
+    const type: SessionType = sessionType === "WATERING" ? SessionType.WATERING : SessionType.SCAN;
 
+    let resolvedScanConfigId: number | null = null;
     let scanConfigSnapshot: Prisma.InputJsonValue | undefined;
-    if (resolvedConfigId != null) {
-      const config = await prisma.scanConfig.findUnique({ where: { id: resolvedConfigId } });
-      if (config) scanConfigSnapshot = ScanConfigService.buildSnapshot(config);
+
+    let resolvedWateringConfigId: number | null = null;
+    let wateringConfigSnapshot: Prisma.InputJsonValue | undefined;
+
+    if (type === SessionType.SCAN) {
+      // Resolve scan config: explicit id → fallback to default → none
+      resolvedScanConfigId = scanConfigId ?? null;
+      if (resolvedScanConfigId == null) {
+        const def = await prisma.scanConfig.findFirst({ where: { isDefault: true } });
+        if (def) resolvedScanConfigId = def.id;
+      }
+      if (resolvedScanConfigId != null) {
+        const config = await prisma.scanConfig.findUnique({ where: { id: resolvedScanConfigId } });
+        if (config) scanConfigSnapshot = ScanConfigService.buildSnapshot(config);
+      }
+    } else {
+      // Resolve watering config: explicit id → fallback to default → none
+      resolvedWateringConfigId = wateringConfigId ?? null;
+      if (resolvedWateringConfigId == null) {
+        const def = await prisma.wateringConfig.findFirst({ where: { isDefault: true } });
+        if (def) resolvedWateringConfigId = def.id;
+      }
+      if (resolvedWateringConfigId != null) {
+        const config = await prisma.wateringConfig.findUnique({ where: { id: resolvedWateringConfigId } });
+        if (config) wateringConfigSnapshot = WateringService.buildSnapshot(config);
+      }
     }
 
     return prisma.session.create({
       data: {
         bedId,
         notes: notes ?? null,
-        scanConfigId: resolvedConfigId,
+        sessionType: type,
+        scanConfigId: resolvedScanConfigId,
         ...(scanConfigSnapshot !== undefined && { scanConfigSnapshot }),
+        wateringConfigId: resolvedWateringConfigId,
+        ...(wateringConfigSnapshot !== undefined && { wateringConfigSnapshot }),
       },
     });
   },

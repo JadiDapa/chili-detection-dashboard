@@ -2,7 +2,7 @@ import PageHeader from "@/components/root/PageHeader";
 import { Input } from "@/components/ui/input";
 import SessionCard from "@/components/root/sessions/SessionCard";
 import CreateSessionDialog from "@/components/root/sessions/CreateSessionDialog";
-import { SessionService } from "@/server/services/leave.service";
+import { SessionService } from "@/server/services/session.service";
 import { Search } from "lucide-react";
 
 type PageProps = {
@@ -19,12 +19,7 @@ export default async function SessionsPage({ searchParams }: PageProps) {
 
   const q = params?.q ?? "";
 
-  const result = await SessionService.list({
-    search: q,
-    orderBy: { createdAt: "desc" },
-    page: 1,
-    pageSize: 30,
-  });
+  const sessions = await SessionService.list();
 
   return (
     <main className="min-h-screen w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6">
@@ -54,9 +49,9 @@ export default async function SessionsPage({ searchParams }: PageProps) {
       </div>
 
       {/* REGION LIST */}
-      {result.items?.length ? (
+      {sessions.length ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {result.items?.map((session) => (
+          {sessions.map((session) => (
             <SessionCard key={session.id} session={session} />
           ))}
         </div>

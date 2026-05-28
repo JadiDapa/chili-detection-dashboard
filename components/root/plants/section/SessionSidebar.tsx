@@ -113,10 +113,19 @@ export default function PlantSessionSidebar() {
     setDialogOpen(true);
   }
 
-  async function handleStartSession(configId: number | null) {
+  async function handleStartSession(
+    sessionType: "SCAN" | "WATERING",
+    configId: number | null,
+  ) {
     setStartPending(true);
     try {
-      const { id } = await createSessionAction(1, undefined, configId ?? undefined);
+      const { id } = await createSessionAction(
+        1,
+        undefined,
+        sessionType === "SCAN" ? (configId ?? undefined) : undefined,
+        sessionType,
+        sessionType === "WATERING" ? (configId ?? undefined) : undefined,
+      );
       setDialogOpen(false);
       const p = new URLSearchParams(searchParams.toString());
       p.set("session", String(id));
@@ -208,8 +217,12 @@ export default function PlantSessionSidebar() {
             <LiveSession
               sessionId={String(activeSession.id)}
               onBack={handleLiveBack}
+              sessionType={activeSession.sessionType as "SCAN" | "WATERING"}
               scanConfig={
                 activeSession.scanConfigSnapshot as Record<string, unknown> | null
+              }
+              wateringConfig={
+                activeSession.wateringConfigSnapshot as Record<string, unknown> | null
               }
             />
           )}

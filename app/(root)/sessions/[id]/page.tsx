@@ -4,7 +4,7 @@ import SessionOverview from "@/components/root/sessions/SessionOverview";
 import "swiper/css";
 import "swiper/css/free-mode";
 import SessionCaptures from "@/components/root/sessions/SessionCaptures";
-import { SessionService } from "@/server/services/leave.service";
+import { SessionService } from "@/server/services/session.service";
 import SessionControl from "@/components/root/sessions/SessionControl";
 
 export default async function DashboardPage({

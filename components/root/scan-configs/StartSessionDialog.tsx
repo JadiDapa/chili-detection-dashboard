@@ -25,10 +25,23 @@ export interface ScanConfigSummary {
   paddingYMm: number;
 }
 
+export interface WateringConfigSummary {
+  id: number;
+  name: string;
+  description: string | null;
+  isDefault: boolean;
+  cols: number;
+  rows: number;
+  gapXMm: number;
+  gapYMm: number;
+  zMaxMm: number;
+  zWaterMm: number;
+}
+
 interface StartSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (configId: number | null) => void;
+  onConfirm: (sessionType: "SCAN" | "WATERING", configId: number | null) => void;
   isPending: boolean;
 }
 
@@ -38,33 +51,82 @@ export default function StartSessionDialog({
   onConfirm,
   isPending,
 }: StartSessionDialogProps) {
-  const [configs, setConfigs] = useState<ScanConfigSummary[]>([]);
+  const [sessionType, setSessionType] = useState<"SCAN" | "WATERING">("SCAN");
+  const [scanConfigs, setScanConfigs] = useState<ScanConfigSummary[]>([]);
+  const [wateringConfigs, setWateringConfigs] = useState<WateringConfigSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || sessionType !== "SCAN") return;
     setLoading(true);
     fetch("/api/scan-configs")
       .then((r) => r.json())
       .then((data: ScanConfigSummary[]) => {
-        setConfigs(data);
+        setScanConfigs(data);
         const def = data.find((c) => c.isDefault) ?? data[0] ?? null;
         setSelectedId(def?.id ?? null);
       })
-      .catch(() => setConfigs([]))
+      .catch(() => setScanConfigs([]))
       .finally(() => setLoading(false));
-  }, [open]);
+  }, [open, sessionType]);
+
+  useEffect(() => {
+    if (!open || sessionType !== "WATERING") return;
+    setLoading(true);
+    fetch("/api/watering-configs")
+      .then((r) => r.json())
+      .then((data: WateringConfigSummary[]) => {
+        setWateringConfigs(data);
+        const def = data.find((c) => c.isDefault) ?? data[0] ?? null;
+        setSelectedId(def?.id ?? null);
+      })
+      .catch(() => setWateringConfigs([]))
+      .finally(() => setLoading(false));
+  }, [open, sessionType]);
+
+  function handleTypeChange(type: "SCAN" | "WATERING") {
+    setSessionType(type);
+    setSelectedId(null);
+  }
+
+  const configs = sessionType === "SCAN" ? scanConfigs : wateringConfigs;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Choose Scan Configuration</DialogTitle>
+          <DialogTitle>Start Session</DialogTitle>
           <p className="text-muted-foreground -mt-1 text-sm">
-            Select a preset to use for this session
+            Choose a session type and configuration
           </p>
         </DialogHeader>
+
+        {/* Type toggle */}
+        <div className="mt-2 flex rounded-lg border p-1">
+          <button
+            onClick={() => handleTypeChange("SCAN")}
+            className={cn(
+              "flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors",
+              sessionType === "SCAN"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Ripeness Scan
+          </button>
+          <button
+            onClick={() => handleTypeChange("WATERING")}
+            className={cn(
+              "flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors",
+              sessionType === "WATERING"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Watering
+          </button>
+        </div>
 
         <div className="mt-2 space-y-2">
           {loading && (
@@ -125,6 +187,9 @@ export default function StartSessionDialog({
                   <p className="mt-1 text-[11px] text-zinc-400">
                     {config.rows}×{config.cols} grid &middot;{" "}
                     {config.gapXMm / 10} cm × {config.gapYMm / 10} cm spacing
+                    {"zMaxMm" in config && (
+                      <> &middot; Z max {(config as WateringConfigSummary).zMaxMm} mm</>
+                    )}
                   </p>
                 </div>
               </button>
@@ -140,7 +205,10 @@ export default function StartSessionDialog({
           >
             Cancel
           </Button>
-          <Button onClick={() => onConfirm(selectedId)} disabled={isPending}>
+          <Button
+            onClick={() => onConfirm(sessionType, selectedId)}
+            disabled={isPending}
+          >
             {isPending ? <Spinner /> : "Start Session"}
           </Button>
         </DialogFooter>

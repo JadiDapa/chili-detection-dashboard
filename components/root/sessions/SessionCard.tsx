@@ -3,15 +3,23 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bookmark, Leaf, AlertTriangle, CircleCheck } from "lucide-react";
+import {
+  Bookmark,
+  Leaf,
+  AlertTriangle,
+  CircleCheck,
+  Droplets,
+  Ruler,
+} from "lucide-react";
 import { SessionType } from "@/lib/types/session";
 import { format } from "date-fns";
 import Link from "next/link";
 
 export default function SessionCard({ session }: { session: SessionType }) {
   const captures = session.captures ?? [];
+  const isWatering = session.sessionType === "WATERING";
 
-  // ---- Aggregations ----
+  // ---- SCAN aggregations ----
   const readyToHarvest = captures.filter((c) => c.ripeCount > 3).length;
   const ripeTotal = captures.reduce((s, c) => s + c.ripeCount, 0);
   const unripeTotal = captures.reduce((s, c) => s + c.unripeCount, 0);
@@ -21,7 +29,7 @@ export default function SessionCard({ session }: { session: SessionType }) {
 
   // ---- Status UI mapping ----
   const statusVariant =
-    session.status === "RUNNING" || session.status === "CAPTURING"
+    session.status === "RUNNING"
       ? "default"
       : session.status === "COMPLETED"
         ? "secondary"
@@ -39,7 +47,18 @@ export default function SessionCard({ session }: { session: SessionType }) {
               </div>
 
               <div>
-                <p className="text-sm font-semibold">{session.title}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold">{session.title}</p>
+                  <span
+                    className={
+                      isWatering
+                        ? "rounded border border-sky-400 px-1.5 py-0.5 text-[10px] font-semibold text-sky-500"
+                        : "rounded border border-emerald-400 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-500"
+                    }
+                  >
+                    {isWatering ? "Watering" : "Scan"}
+                  </span>
+                </div>
                 <p className="text-muted-foreground text-xs">
                   {format(session.createdAt, "d MMM yyyy")}
                 </p>
@@ -59,28 +78,60 @@ export default function SessionCard({ session }: { session: SessionType }) {
           )}
 
           {/* Quick stats */}
-          <div className="grid grid-cols-4 gap-2 text-xs">
-            <MiniStat
-              icon={<CircleCheck className="h-3 w-3 text-green-600" />}
-              value={readyToHarvest}
-              label="Ready"
-            />
-            <MiniStat
-              icon={<Leaf className="h-3 w-3 text-emerald-500" />}
-              value={ripeTotal}
-              label="Ripe"
-            />
-            <MiniStat
-              icon={<Leaf className="h-3 w-3 text-yellow-500" />}
-              value={unripeTotal}
-              label="Unripe"
-            />
-            <MiniStat
-              icon={<AlertTriangle className="h-3 w-3 text-red-500" />}
-              value={damagedTotal}
-              label="Damaged"
-            />
-          </div>
+          {isWatering ? (
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <MiniStat
+                icon={<Ruler className="h-3 w-3 text-yellow-500" />}
+                value={
+                  session.maxHeightCm != null
+                    ? `${session.maxHeightCm.toFixed(1)} cm`
+                    : "—"
+                }
+                label="Height"
+              />
+              <MiniStat
+                icon={<Droplets className="h-3 w-3 text-sky-500" />}
+                value={
+                  session.moistureBeforeAvg != null
+                    ? `${session.moistureBeforeAvg.toFixed(0)}%`
+                    : "—"
+                }
+                label="Before"
+              />
+              <MiniStat
+                icon={<Droplets className="h-3 w-3 text-emerald-500" />}
+                value={
+                  session.moistureAfterAvg != null
+                    ? `${session.moistureAfterAvg.toFixed(0)}%`
+                    : "—"
+                }
+                label="After"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-2 text-xs">
+              <MiniStat
+                icon={<CircleCheck className="h-3 w-3 text-green-600" />}
+                value={String(readyToHarvest)}
+                label="Ready"
+              />
+              <MiniStat
+                icon={<Leaf className="h-3 w-3 text-emerald-500" />}
+                value={String(ripeTotal)}
+                label="Ripe"
+              />
+              <MiniStat
+                icon={<Leaf className="h-3 w-3 text-yellow-500" />}
+                value={String(unripeTotal)}
+                label="Unripe"
+              />
+              <MiniStat
+                icon={<AlertTriangle className="h-3 w-3 text-red-500" />}
+                value={String(damagedTotal)}
+                label="Damaged"
+              />
+            </div>
+          )}
 
           {/* Footer */}
           <div className="flex items-center justify-between border-t pt-4">
@@ -103,14 +154,13 @@ export default function SessionCard({ session }: { session: SessionType }) {
   );
 }
 
-/* Small stat for card */
 function MiniStat({
   icon,
   value,
   label,
 }: {
   icon: React.ReactNode;
-  value: number;
+  value: string;
   label: string;
 }) {
   return (

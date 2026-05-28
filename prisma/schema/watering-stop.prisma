@@ -1,0 +1,17 @@
+model WateringStop {
+    id        Int     @id @default(autoincrement())
+    sessionId Int
+    session   Session @relation(fields: [sessionId], references: [id])
+
+    stopIndex        Int    // 0-based column index (0–7)
+    xMm              Float
+    yMm              Float
+    maxHeightCm      Float? // max plant height at this column from TOF sweep
+    valveDurationSec Float
+
+    wateredAt DateTime @default(now())
+
+    createdAt DateTime @default(now())
+
+    @@index([sessionId])
+}

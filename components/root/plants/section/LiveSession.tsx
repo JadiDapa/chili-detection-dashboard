@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Droplets,
   Leaf,
   Loader2,
   Play,
@@ -38,17 +39,17 @@ interface LiveCapture {
   plant_id: number;
   image_url: string | null;
   classes: ClassCount;
-  height_cm?: number | null; // ← add
-  moisture_pct?: number | null; // ← add
+  height_cm?: number | null;
+  moisture_pct?: number | null;
 }
 
-// Phase:
-//  idle      → waiting for user to press Start
-//  creating  → POST /sessions + POST /sessions/{id}/start in flight
-//  running   → SSE connected, scanning in progress
-//  complete  → session_complete event received
-//  stopped   → user pressed Stop
-//  error     → any fetch/SSE failure
+interface WateringStopEntry {
+  stop_index: number;
+  x_mm: number;
+  y_mm: number;
+  duration_sec: number;
+}
+
 type Phase = "idle" | "creating" | "running" | "complete" | "stopped" | "error";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -177,7 +178,6 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
             </div>
           ),
         )}
-        {/* Extra sensor data */}
         {cap.height_cm != null && (
           <div className="mt-1 flex items-center justify-between border-t pt-1">
             <span className="text-[10px] text-zinc-500">Height</span>
@@ -204,7 +204,9 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
 interface LiveSessionProps {
   onBack: () => void;
   sessionId: string;
+  sessionType?: "SCAN" | "WATERING";
   scanConfig?: Record<string, unknown> | null;
+  wateringConfig?: Record<string, unknown> | null;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -212,31 +214,41 @@ interface LiveSessionProps {
 export default function LiveSession({
   onBack,
   sessionId: initialSessionId,
+  sessionType = "SCAN",
   scanConfig,
+  wateringConfig,
 }: LiveSessionProps) {
   const sessionId = initialSessionId;
+  const isWatering = sessionType === "WATERING";
 
-  const TOTAL_PLANTS = 16;
+  const TOTAL_SCAN_PLANTS = 16;
+  const TOTAL_WATER_COLS = 8;
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
 
+  // SCAN state
   const [scanCount, setScanCount] = useState(0);
   const [currentPlantId, setCurrentPlantId] = useState<number | null>(null);
-  const [avgHeight, setAvgHeight] = useState<number | null>(null);
   const [captures, setCaptures] = useState<LiveCapture[]>([]);
   const [capturesOpen, setCapturesOpen] = useState(true);
+
+  // WATERING state
+  const [tofProgress, setTofProgress] = useState({ done: 0, total: 0 });
+  const [maxHeightCm, setMaxHeightCm] = useState<number | null>(null);
+  const [moistureBefore, setMoistureBefore] = useState<number[] | null>(null);
+  const [fuzzyDuration, setFuzzyDuration] = useState<number | null>(null);
+  const [wateringStops, setWateringStops] = useState<WateringStopEntry[]>([]);
+  const [moistureAfter, setMoistureAfter] = useState<number[] | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
   const capturesRef = useRef<LiveCapture[]>([]);
   const [startTime, setStartTime] = useState<string | null>(null);
 
-  // Keep ref in sync for use inside SSE closure
   useEffect(() => {
     capturesRef.current = captures;
   }, [captures]);
 
-  // Cleanup SSE on unmount
   useEffect(() => {
     return () => {
       esRef.current?.close();
@@ -245,39 +257,66 @@ export default function LiveSession({
 
   function handleEvent(event: SSEEvent) {
     switch (event.type) {
+      // ── SCAN events ────────────────────────────────────────────────────────
       case "gantry_moved":
         setCurrentPlantId(event.plant_id);
         break;
 
-      case "plant_scanned":
+      case "plant_scanned": {
+        const entry: LiveCapture = {
+          plant_id: event.plant_id,
+          image_url: event.image_url,
+          classes: detectionsToClassCount(event.detections),
+        };
         setCaptures((prev) => {
-          const entry: LiveCapture = {
-            plant_id: event.plant_id,
-            image_url: event.image_url,
-            classes: detectionsToClassCount(event.detections),
-            height_cm: event.height_cm ?? null, // ← add
-            moisture_pct: event.moisture_pct ?? null, // ← add
-          };
           const exists = prev.find((c) => c.plant_id === event.plant_id);
           return exists
             ? prev.map((c) => (c.plant_id === event.plant_id ? entry : c))
             : [...prev, entry];
         });
-        break;
-
-      case "sensor_read":
-        setAvgHeight((prev) => {
-          const n = capturesRef.current.length + 1;
-          if (prev === null) return event.height_cm;
-          return Math.round(((prev * (n - 1) + event.height_cm) / n) * 10) / 10;
-        });
-        break;
-
-      case "plant_watered":
         setScanCount((c) => c + 1);
-        setCurrentPlantId(null);
+        break;
+      }
+
+      // ── WATERING events ────────────────────────────────────────────────────
+      case "tof_sweep_started":
+        setTofProgress({ done: 0, total: event.total_positions });
         break;
 
+      case "tof_position_scanned":
+        setTofProgress({ done: event.position, total: event.total });
+        break;
+
+      case "tof_sweep_complete":
+        setMaxHeightCm(event.max_height_cm);
+        break;
+
+      case "moisture_read_before":
+        setMoistureBefore(Array.from(event.sensors));
+        break;
+
+      case "fuzzy_computed":
+        setFuzzyDuration(event.duration_sec);
+        break;
+
+      case "watering_stop":
+        setScanCount((c) => c + 1);
+        setWateringStops((prev) => [
+          ...prev,
+          {
+            stop_index: event.stop_index,
+            x_mm: event.x_mm,
+            y_mm: event.y_mm,
+            duration_sec: event.duration_sec,
+          },
+        ]);
+        break;
+
+      case "moisture_read_after":
+        setMoistureAfter(Array.from(event.sensors));
+        break;
+
+      // ── Shared terminal events ─────────────────────────────────────────────
       case "session_complete":
         setPhase("complete");
         setCurrentPlantId(null);
@@ -298,11 +337,20 @@ export default function LiveSession({
     setError(null);
     setCurrentPlantId(null);
     setScanCount(0);
-    setAvgHeight(null);
     setCaptures([]);
+    setTofProgress({ done: 0, total: 0 });
+    setMaxHeightCm(null);
+    setMoistureBefore(null);
+    setFuzzyDuration(null);
+    setWateringStops([]);
+    setMoistureAfter(null);
 
     try {
-      await piApi.startSession(sessionId, scanConfig);
+      await piApi.startSession(
+        sessionId,
+        isWatering ? "WATERING" : "SCAN",
+        isWatering ? wateringConfig : scanConfig,
+      );
 
       const es = piApi.connectEvents(sessionId, handleEvent, () => {
         setPhase("error");
@@ -325,8 +373,6 @@ export default function LiveSession({
     }
   }
 
-  // ── SSE handler ─────────────────────────────────────────────────────────────
-
   // ── Stop ────────────────────────────────────────────────────────────────────
   async function handleStop() {
     if (!sessionId) return;
@@ -344,9 +390,18 @@ export default function LiveSession({
   const isComplete = phase === "complete";
   const isEnded =
     phase === "stopped" || phase === "error" || phase === "complete";
-  const pct = Math.round((scanCount / TOTAL_PLANTS) * 100);
+  const totalSteps = isWatering ? TOTAL_WATER_COLS : TOTAL_SCAN_PLANTS;
+  const pct = Math.round((scanCount / totalSteps) * 100);
   const liveClasses = sumClasses(captures);
   const liveTotalFruits = Object.values(liveClasses).reduce((a, b) => a + b, 0);
+  const tofPct =
+    tofProgress.total > 0
+      ? Math.round((tofProgress.done / tofProgress.total) * 100)
+      : 0;
+
+  const idleDescription = isWatering
+    ? `The gantry will home, sweep ${TOTAL_SCAN_PLANTS} positions for height, then water ${TOTAL_WATER_COLS} column zones.`
+    : `The gantry will home, then scan all ${TOTAL_SCAN_PLANTS} plants in sequence.`;
 
   return (
     <div className="flex flex-col gap-0 pt-4">
@@ -362,7 +417,21 @@ export default function LiveSession({
       {/* Header */}
       <div className="mt-4 flex items-center justify-between">
         <div>
-          <h2 className="text-foreground text-xl font-semibold">New Session</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-foreground text-xl font-semibold">
+              New Session
+            </h2>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                isWatering
+                  ? "bg-sky-500/10 text-sky-500"
+                  : "bg-emerald-500/10 text-emerald-500",
+              )}
+            >
+              {isWatering ? "Watering" : "Scan"}
+            </span>
+          </div>
           <p className="text-muted-foreground text-[11px]">
             {startTime
               ? `${startTime} — ${isEnded ? "ended" : "ongoing"}`
@@ -429,18 +498,21 @@ export default function LiveSession({
         <div className="flex flex-col items-center gap-4 py-6">
           <div className="bg-muted w-full rounded-2xl p-6 text-center">
             <div className="bg-primary/10 mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
-              <Play
-                size={22}
-                className="text-primary ml-0.5"
-                fill="currentColor"
-              />
+              {isWatering ? (
+                <Droplets size={22} className="text-primary" />
+              ) : (
+                <Play
+                  size={22}
+                  className="text-primary ml-0.5"
+                  fill="currentColor"
+                />
+              )}
             </div>
             <p className="text-foreground text-sm font-semibold">
-              Ready to scan
+              {isWatering ? "Ready to water" : "Ready to scan"}
             </p>
             <p className="text-muted-foreground mt-1 text-[11px]">
-              The gantry will home, then scan all {TOTAL_PLANTS} plants in
-              sequence.
+              {idleDescription}
             </p>
             <p className="mt-2 font-mono text-[10px] text-zinc-500">{PI_URL}</p>
           </div>
@@ -466,111 +538,282 @@ export default function LiveSession({
       {/* ── RUNNING / COMPLETE / STOPPED: live data ── */}
       {(phase === "running" || phase === "complete" || phase === "stopped") && (
         <>
-          {/* Progress */}
-          <div className="mb-3">
-            <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
-                Scanning Progress
-              </p>
-              <span className="text-[11px] text-zinc-400">
-                {scanCount} / {TOTAL_PLANTS} Tree
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  isComplete ? "bg-sky-500" : "bg-emerald-500",
-                )}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <p className="mt-1 text-right text-[10px] text-zinc-500">
-              {currentPlantId && !isEnded
-                ? `Scanning Plant #${String(currentPlantId).padStart(2, "0")}…`
-                : `${pct}%`}
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-muted flex flex-col gap-2 rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-100">
-                  <Leaf className="h-3.5 w-3.5 text-green-700" />
+          {isWatering ? (
+            /* ── WATERING live panel ─────────────────────────────────────── */
+            <div className="flex flex-col gap-3">
+              {/* TOF sweep progress */}
+              {tofProgress.total > 0 && (
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                      TOF Height Sweep
+                    </p>
+                    <span className="text-[11px] text-zinc-400">
+                      {tofProgress.done} / {tofProgress.total} positions
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        maxHeightCm !== null ? "bg-sky-500" : "bg-amber-500",
+                      )}
+                      style={{ width: `${tofPct}%` }}
+                    />
+                  </div>
                 </div>
-                <p className="text-sm">Total Fruits</p>
-              </div>
-              <div className="flex items-baseline gap-1.5">
-                <p className="text-xl font-medium tabular-nums">
-                  {liveTotalFruits}
-                </p>
-                <p className="text-xs text-zinc-400">
-                  from {scanCount} tree{scanCount !== 1 ? "s" : ""}
-                </p>
-              </div>
-            </div>
+              )}
 
-            <div className="bg-muted flex flex-col gap-2 rounded-xl p-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-100">
-                  <Ruler className="h-3.5 w-3.5 text-yellow-700" />
-                </div>
-                <p className="text-sm">Avg Height</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <p className="text-xl font-medium tabular-nums">
-                  {avgHeight ?? "—"}
-                </p>
-                <p className="text-xs text-zinc-400">cm</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Fruit breakdown */}
-          <div className="bg-muted mt-2 rounded-xl px-3 py-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="font-medium">Scanned Fruit</p>
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs text-zinc-400">Total:</p>
-                <p className="text-primary text-xs font-semibold tabular-nums">
-                  {liveTotalFruits}
-                </p>
-              </div>
-            </div>
-            <ClassBarList classes={liveClasses} total={liveTotalFruits} />
-          </div>
-
-          <div className="my-3 border-t" />
-
-          {/* Captures */}
-          <Collapsible open={capturesOpen} onOpenChange={setCapturesOpen}>
-            <CollapsibleTrigger className="flex w-full items-center justify-between text-left">
+              {/* Watering column progress */}
               <div>
-                <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
-                  Captured Plants
-                </p>
-                <p className="text-[11px] text-zinc-400">
-                  {captures.length} scanned
+                <div className="mb-1.5 flex items-center justify-between">
+                  <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                    Watering Progress
+                  </p>
+                  <span className="text-[11px] text-zinc-400">
+                    {scanCount} / {TOTAL_WATER_COLS} columns
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      isComplete ? "bg-sky-500" : "bg-emerald-500",
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted flex flex-col gap-2 rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-100">
+                      <Ruler className="h-3.5 w-3.5 text-yellow-700" />
+                    </div>
+                    <p className="text-sm">Max Height</p>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <p className="text-xl font-medium tabular-nums">
+                      {maxHeightCm ?? "—"}
+                    </p>
+                    <p className="text-xs text-zinc-400">cm</p>
+                  </div>
+                </div>
+
+                <div className="bg-muted flex flex-col gap-2 rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-sky-100">
+                      <Droplets className="h-3.5 w-3.5 text-sky-700" />
+                    </div>
+                    <p className="text-sm">Valve Open</p>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <p className="text-xl font-medium tabular-nums">
+                      {fuzzyDuration !== null ? fuzzyDuration.toFixed(1) : "—"}
+                    </p>
+                    <p className="text-xs text-zinc-400">sec</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Moisture before / after */}
+              {(moistureBefore || moistureAfter) && (
+                <div className="bg-muted rounded-xl px-3 py-3">
+                  <p className="mb-2 text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                    Soil Moisture
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="mb-1 text-[10px] text-zinc-500">Before</p>
+                      {moistureBefore ? (
+                        moistureBefore.map((v, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between"
+                          >
+                            <span className="text-[10px] text-zinc-400">
+                              S{i}
+                            </span>
+                            <span className="text-[10px] font-medium">
+                              {v.toFixed(1)}%
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[10px] text-zinc-500">—</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="mb-1 text-[10px] text-zinc-500">After</p>
+                      {moistureAfter ? (
+                        moistureAfter.map((v, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between"
+                          >
+                            <span className="text-[10px] text-zinc-400">
+                              S{i}
+                            </span>
+                            <span className="text-[10px] font-medium">
+                              {v.toFixed(1)}%
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[10px] text-zinc-500">
+                          {isComplete ? "—" : "Pending…"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Watering stops list */}
+              {wateringStops.length > 0 && (
+                <div className="bg-muted rounded-xl px-3 py-3">
+                  <p className="mb-2 text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                    Column Stops
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {wateringStops.map((stop) => (
+                      <div
+                        key={stop.stop_index}
+                        className="flex items-center justify-between rounded px-2 py-1 odd:bg-zinc-100 dark:odd:bg-zinc-800"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2
+                            size={10}
+                            className="text-emerald-500"
+                          />
+                          <span className="text-[10px] text-zinc-500">
+                            Col {stop.stop_index}
+                          </span>
+                          <span className="font-mono text-[10px] text-zinc-400">
+                            x={stop.x_mm.toFixed(0)}mm
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-semibold">
+                          {stop.duration_sec.toFixed(1)}s
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── SCAN live panel ─────────────────────────────────────────── */
+            <>
+              {/* Progress */}
+              <div className="mb-3">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                    Scanning Progress
+                  </p>
+                  <span className="text-[11px] text-zinc-400">
+                    {scanCount} / {TOTAL_SCAN_PLANTS} Tree
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-500",
+                      isComplete ? "bg-sky-500" : "bg-emerald-500",
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-right text-[10px] text-zinc-500">
+                  {currentPlantId && !isEnded
+                    ? `Scanning Plant #${String(currentPlantId).padStart(2, "0")}…`
+                    : `${pct}%`}
                 </p>
               </div>
-              {capturesOpen ? (
-                <ChevronUp size={14} className="text-zinc-500" />
-              ) : (
-                <ChevronDown size={14} className="text-zinc-500" />
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3 flex flex-col gap-2">
-              {captures.length === 0 && (
-                <p className="py-4 text-center text-xs text-zinc-500">
-                  Waiting for first scan…
-                </p>
-              )}
-              {captures.map((cap) => (
-                <CaptureCard key={cap.plant_id} cap={cap} />
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted flex flex-col gap-2 rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-green-100">
+                      <Leaf className="h-3.5 w-3.5 text-green-700" />
+                    </div>
+                    <p className="text-sm">Total Fruits</p>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <p className="text-xl font-medium tabular-nums">
+                      {liveTotalFruits}
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      from {scanCount} tree{scanCount !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-muted flex flex-col gap-2 rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-yellow-100">
+                      <Ruler className="h-3.5 w-3.5 text-yellow-700" />
+                    </div>
+                    <p className="text-sm">Scanned</p>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <p className="text-xl font-medium tabular-nums">
+                      {scanCount}
+                    </p>
+                    <p className="text-xs text-zinc-400">plants</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fruit breakdown */}
+              <div className="bg-muted mt-2 rounded-xl px-3 py-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-medium">Scanned Fruit</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-zinc-400">Total:</p>
+                    <p className="text-primary text-xs font-semibold tabular-nums">
+                      {liveTotalFruits}
+                    </p>
+                  </div>
+                </div>
+                <ClassBarList classes={liveClasses} total={liveTotalFruits} />
+              </div>
+
+              <div className="my-3 border-t" />
+
+              {/* Captures */}
+              <Collapsible open={capturesOpen} onOpenChange={setCapturesOpen}>
+                <CollapsibleTrigger className="flex w-full items-center justify-between text-left">
+                  <div>
+                    <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                      Captured Plants
+                    </p>
+                    <p className="text-[11px] text-zinc-400">
+                      {captures.length} scanned
+                    </p>
+                  </div>
+                  {capturesOpen ? (
+                    <ChevronUp size={14} className="text-zinc-500" />
+                  ) : (
+                    <ChevronDown size={14} className="text-zinc-500" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 flex flex-col gap-2">
+                  {captures.length === 0 && (
+                    <p className="py-4 text-center text-xs text-zinc-500">
+                      Waiting for first scan…
+                    </p>
+                  )}
+                  {captures.map((cap) => (
+                    <CaptureCard key={cap.plant_id} cap={cap} />
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            </>
+          )}
 
           <div className="my-3 border-t" />
         </>

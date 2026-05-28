@@ -7,8 +7,16 @@ export async function createSessionAction(
   bedId: number,
   notes?: string | null,
   scanConfigId?: number | null,
+  sessionType?: "SCAN" | "WATERING",
+  wateringConfigId?: number | null,
 ) {
-  const session = await SessionService.create(bedId, notes, scanConfigId);
+  const session = await SessionService.create(
+    bedId,
+    notes,
+    scanConfigId,
+    sessionType,
+    wateringConfigId,
+  );
   revalidatePath("/plants");
-  return { id: session.id };
+  return { id: session.id, sessionType: session.sessionType };
 }

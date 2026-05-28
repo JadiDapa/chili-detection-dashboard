@@ -6,6 +6,11 @@ enum SessionStatus {
     ERROR // something went wrong on the Pi
 }
 
+enum SessionType {
+    SCAN
+    WATERING
+}
+
 model Session {
     id         Int     @id @default(autoincrement())
     title      String?
@@ -18,8 +23,9 @@ model Session {
     startedAt   DateTime?
     completedAt DateTime?
     status      SessionStatus @default(PENDING)
+    sessionType SessionType   @default(SCAN)
 
-    // Summary — written by SessionSyncManager when session_complete fires
+    // SCAN summary — written when session_complete fires
     totalPlants     Int?
     avgHeightCm     Float?
     avgMoisturePct  Float?
@@ -37,13 +43,27 @@ model Session {
     scanConfig         ScanConfig? @relation(fields: [scanConfigId], references: [id])
     scanConfigSnapshot Json?
 
+    // WATERING-only summary fields
+    maxHeightCm       Float? // global max plant height from TOF sweep
+    fuzzyDurationSec  Float? // fuzzy logic output watering duration
+    stopsWatered      Int?   // number of column stops completed
+    moistureBeforeAvg Float? // avg of 3 soil sensors before watering
+    moistureAfterAvg  Float? // avg of 3 soil sensors after watering
+
+    // Watering configuration — preset used and frozen copy
+    wateringConfigId       Int?
+    wateringConfig         WateringConfig? @relation(fields: [wateringConfigId], references: [id])
+    wateringConfigSnapshot Json?
+
     // Relations
-    captures Captures[]
+    captures      Captures[]
+    wateringStops WateringStop[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
     @@index([bedId])
     @@index([status])
+    @@index([sessionType])
     @@index([createdAt])
 }
