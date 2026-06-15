@@ -18,7 +18,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
 import { PlusCircle } from "lucide-react";
 
-import { createSession } from "@/app/actions/sessions.actions";
+import { createSessionAction as createSession } from "@/app/actions/sessions.actions";
 import { SessionSchema } from "@/server/validators/session.validator";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";

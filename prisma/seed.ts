@@ -7,7 +7,17 @@ const connectionString = `${process.env.DATABASE_URL}`;
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
+
+const PI_URL = process.env.RASPBERRY_PI_URL ?? "http://localhost:8000";
+
+// 2×8 grid, 750 mm column spacing, 1000 mm row spacing
+const ROWS = 2;
+const COLS = 8;
+const GAP_X_MM = 750;
+const GAP_Y_MM = 1000;
+
 async function main() {
+  // ── User ───────────────────────────────────────────────────────────────────
   const admin = await prisma.user.upsert({
     where: { username: "administrator" },
     update: {},
@@ -17,9 +27,9 @@ async function main() {
       role: "ADMIN",
     },
   });
-
   console.log({ admin });
 
+  // ── ScanConfig ─────────────────────────────────────────────────────────────
   const existing = await prisma.scanConfig.findFirst({ where: { isDefault: true } });
   if (!existing) {
     const defaultConfig = await prisma.scanConfig.create({
@@ -27,10 +37,10 @@ async function main() {
         name: "Default",
         description: "Default 2×8 grid — 750mm column spacing, 1000mm row spacing",
         isDefault: true,
-        cols: 8,
-        rows: 2,
-        gapXMm: 750.0,
-        gapYMm: 1000.0,
+        cols: COLS,
+        rows: ROWS,
+        gapXMm: GAP_X_MM,
+        gapYMm: GAP_Y_MM,
         paddingXMm: 0.0,
         paddingYMm: 0.0,
         captureOffsets: [
@@ -48,7 +58,46 @@ async function main() {
   } else {
     console.log({ defaultConfig: existing });
   }
+
+  // ── Bed ────────────────────────────────────────────────────────────────────
+  // id=1 matches bed_id="1" in raspberry/config.py — must stay in sync.
+  const bed = await prisma.bed.upsert({
+    where: { id: 1 },
+    update: { piUrl: PI_URL },
+    create: {
+      id: 1,
+      name: "UNSRI Greenhouse Bed 1",
+      description: "Main 2×8 chili planter bed (2×6m gantry)",
+      piUrl: PI_URL,
+      rows: ROWS,
+      cols: COLS,
+    },
+  });
+  console.log({ bed });
+
+  // ── Plants ─────────────────────────────────────────────────────────────────
+  // plantPos is 1-based, row-major (row 0 col 0 = plant 1, row 0 col 7 = plant 8, …)
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const plantPos = row * COLS + col + 1;
+      await prisma.plant.upsert({
+        where: { bedId_plantPos: { bedId: 1, plantPos } },
+        update: {},
+        create: {
+          bedId: 1,
+          plantPos,
+          row,
+          col,
+          xMm: col * GAP_X_MM,
+          yMm: row * GAP_Y_MM,
+          label: `Plant ${plantPos}`,
+        },
+      });
+    }
+  }
+  console.log(`seeded ${ROWS * COLS} plants`);
 }
+
 main()
   .then(async () => {
     await prisma.$disconnect();

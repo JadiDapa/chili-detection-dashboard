@@ -192,6 +192,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// Remove an empty `capture_offsets` so the RPi applies its built-in default
+// instead of rejecting an empty list. Returns the config unchanged otherwise.
+function stripEmptyCaptureOffsets(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  const offsets = config.capture_offsets;
+  if (Array.isArray(offsets) && offsets.length === 0) {
+    const { capture_offsets: _omit, ...rest } = config;
+    return rest;
+  }
+  return config;
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const piApi = {
@@ -199,15 +212,33 @@ export const piApi = {
     id: string,
     sessionType: "SCAN" | "WATERING" = "SCAN",
     config?: Record<string, unknown> | null,
-  ) =>
-    request<{ session_id: string; status: string }>(`/sessions/${id}/start`, {
-      method: "POST",
-      body: JSON.stringify({
-        session_type: sessionType,
-        ...(sessionType === "SCAN" && config ? { scan_config: config } : {}),
-        ...(sessionType === "WATERING" && config ? { watering_config: config } : {}),
-      }),
-    }),
+  ) => {
+    // The scan config UI treats capture offsets as optional ("RPi will use
+    // built-in defaults"). The RPi requires capture_offsets to be non-empty
+    // (min_length=1) and only falls back to its default when the field is
+    // absent — an empty list is a 422. So drop an empty capture_offsets here
+    // to honor that contract for both fresh and previously-stored snapshots.
+    const scanConfig =
+      sessionType === "SCAN" && config
+        ? stripEmptyCaptureOffsets(config)
+        : config;
+
+    return request<{ session_id: string; status: string }>(
+      `/sessions/${id}/start`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          session_type: sessionType,
+          ...(sessionType === "SCAN" && scanConfig
+            ? { scan_config: scanConfig }
+            : {}),
+          ...(sessionType === "WATERING" && config
+            ? { watering_config: config }
+            : {}),
+        }),
+      },
+    );
+  },
 
   stopSession: (id: string) =>
     request<{ session_id: string; status: string }>(`/sessions/${id}/stop`, {
@@ -230,6 +261,45 @@ export const piApi = {
       method: "POST",
       body: JSON.stringify({ pan, tilt }),
     }),
+
+  // Gantry control (routes through RPi — returns 409 if session active or gantry busy)
+  gantryPosition: () =>
+    request<{
+      x: number;
+      y: number;
+      z: number;
+      busy: boolean;
+      homed: boolean;
+      session_active: boolean;
+    }>("/gantry/position"),
+
+  gantryMove: (x: number, y: number, z: number, speed = 500) =>
+    request<{ ok: boolean; position: { x: number; y: number; z: number } }>(
+      "/gantry/move",
+      { method: "POST", body: JSON.stringify({ x, y, z, speed }) },
+    ),
+
+  gantryHome: () =>
+    request<{ ok: boolean; position: { x: number; y: number; z: number } }>(
+      "/gantry/home",
+      { method: "POST" },
+    ),
+
+  gantryStop: () =>
+    request<{ ok: boolean; stopped: boolean }>("/gantry/stop", {
+      method: "POST",
+    }),
+
+  gantryRelay: (channel: "sol" | "dc", on: boolean) =>
+    request<{ ok: boolean; channel: string; on: boolean }>("/gantry/relay", {
+      method: "POST",
+      body: JSON.stringify({ channel, on }),
+    }),
+
+  gantryLimits: () =>
+    request<{ l1: number; l2: number; l3: number; l4: number }>(
+      "/gantry/limits",
+    ),
 
   // SSE — browser only, returns EventSource handle
   connectEvents: (

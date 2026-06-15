@@ -2,6 +2,8 @@ import PageHeader from "@/components/root/PageHeader";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
 import ScanningResultChart from "@/components/root/plants/section/ScanningResultChart";
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
+import GantryControl from "@/components/root/plants/section/GantryControl";
+import HardwarePanel from "@/components/root/plants/section/HardwarePanel";
 import ServoPanTiltControl from "@/components/root/plants/section/ServoPanTiltControl";
 import SessionSidebar from "@/components/root/plants/section/SessionSidebar";
 import { Button } from "@/components/ui/button";
@@ -15,8 +17,8 @@ export default async function PlantSections({
   const { section } = await params;
 
   return (
-    <main className="flex min-h-screen w-full gap-3 overflow-hidden pe-3 pt-2">
-      <div className="flex-5 p-3">
+    <main className="flex min-h-screen w-full gap-3 overflow-hidden py-2 pe-3">
+      <div className="flex-5 px-3">
         <div className="flex items-center justify-between">
           <PageHeader
             title={`Section: ${section}`}
@@ -38,9 +40,11 @@ export default async function PlantSections({
 
           <div className="flex flex-col gap-3 py-3 pr-1 pb-4">
             <SectionOverviewStats />
+            <ScanningResultChart />
             <div className="flex gap-3">
-              <ScanningResultChart />
               <ServoPanTiltControl />
+              <GantryControl />
+              <HardwarePanel />
             </div>
           </div>
         </div>

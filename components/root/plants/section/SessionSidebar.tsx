@@ -148,7 +148,7 @@ export default function PlantSessionSidebar() {
   }
 
   return (
-    <div className="bg-card text-foreground flex h-[120vh] w-full flex-2 flex-col rounded-xl px-3">
+    <div className="bg-card text-foreground flex h-full w-100 flex-col rounded-xl px-3">
       {view === "list" && (
         <div className="flex items-center justify-between px-1 pt-5 pb-3">
           <div>
@@ -219,10 +219,16 @@ export default function PlantSessionSidebar() {
               onBack={handleLiveBack}
               sessionType={activeSession.sessionType as "SCAN" | "WATERING"}
               scanConfig={
-                activeSession.scanConfigSnapshot as Record<string, unknown> | null
+                activeSession.scanConfigSnapshot as Record<
+                  string,
+                  unknown
+                > | null
               }
               wateringConfig={
-                activeSession.wateringConfigSnapshot as Record<string, unknown> | null
+                activeSession.wateringConfigSnapshot as Record<
+                  string,
+                  unknown
+                > | null
               }
             />
           )}
