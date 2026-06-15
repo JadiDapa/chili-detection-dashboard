@@ -1,12 +1,17 @@
 /**
  * lib/pi.ts — Raspberry Pi FastAPI client
  *
- * Add to your .env.local:
- *   RASPBERRY_PI_URL=http://100.127.114.61:8000
+ * This client runs in the BROWSER (SSE, camera <img>, sensor fetches), so the
+ * URL must be NEXT_PUBLIC_* to be inlined into the client bundle at build time,
+ * and must be reachable from each user's browser (e.g. a Tailscale Funnel/Serve
+ * HTTPS endpoint — plain http://100.x will be blocked as mixed content on HTTPS).
+ *
+ * Add to your .env (set at BUILD time):
+ *   NEXT_PUBLIC_RASPBERRY_PI_URL=https://<rpi-host>.<tailnet>.ts.net
  */
 
 export const PI_URL =
-  process.env.RASPBERRY_PI_URL ?? "http://100.127.114.61:8000";
+  process.env.NEXT_PUBLIC_RASPBERRY_PI_URL ?? "http://100.127.114.61:8000";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
