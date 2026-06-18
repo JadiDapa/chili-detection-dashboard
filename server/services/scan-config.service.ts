@@ -17,8 +17,8 @@ export type ScanConfigData = {
   rows?: number;
   gapXMm?: number;
   gapYMm?: number;
-  paddingXMm?: number;
-  paddingYMm?: number;
+  startXMm?: number;
+  startYMm?: number;
   captureOffsets: CaptureOffsetData[];
 };
 
@@ -47,8 +47,8 @@ export const ScanConfigService = {
         rows: data.rows ?? 2,
         gapXMm: data.gapXMm ?? 750.0,
         gapYMm: data.gapYMm ?? 1000.0,
-        paddingXMm: data.paddingXMm ?? 0.0,
-        paddingYMm: data.paddingYMm ?? 0.0,
+        startXMm: data.startXMm ?? 0.0,
+        startYMm: data.startYMm ?? 0.0,
         captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
       },
     });
@@ -65,8 +65,8 @@ export const ScanConfigService = {
         ...(data.rows !== undefined && { rows: data.rows }),
         ...(data.gapXMm !== undefined && { gapXMm: data.gapXMm }),
         ...(data.gapYMm !== undefined && { gapYMm: data.gapYMm }),
-        ...(data.paddingXMm !== undefined && { paddingXMm: data.paddingXMm }),
-        ...(data.paddingYMm !== undefined && { paddingYMm: data.paddingYMm }),
+        ...(data.startXMm !== undefined && { startXMm: data.startXMm }),
+        ...(data.startYMm !== undefined && { startYMm: data.startYMm }),
         ...(data.captureOffsets !== undefined && {
           captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
         }),
@@ -92,8 +92,8 @@ export const ScanConfigService = {
     rows: number;
     gapXMm: number;
     gapYMm: number;
-    paddingXMm: number;
-    paddingYMm: number;
+    startXMm: number;
+    startYMm: number;
     captureOffsets: Prisma.JsonValue;
   }): Prisma.InputJsonValue {
     return {
@@ -101,8 +101,8 @@ export const ScanConfigService = {
       rows: config.rows,
       gap_x_mm: config.gapXMm,
       gap_y_mm: config.gapYMm,
-      padding_x_mm: config.paddingXMm,
-      padding_y_mm: config.paddingYMm,
+      start_x_mm: config.startXMm,
+      start_y_mm: config.startYMm,
       capture_offsets: config.captureOffsets,
     } as Prisma.InputJsonValue;
   },

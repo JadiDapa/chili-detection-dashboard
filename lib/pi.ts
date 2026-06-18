@@ -95,6 +95,13 @@ export type SSEEvent =
     }
   // ── SCAN session events ──
   | {
+      type: "gantry_moving";
+      session_id: string;
+      plant_id: number;
+      row: number;
+      col: number;
+    }
+  | {
       type: "gantry_moved";
       session_id: string;
       plant_id: number;

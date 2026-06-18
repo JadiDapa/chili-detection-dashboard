@@ -8,7 +8,8 @@ const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const PI_URL = process.env.RASPBERRY_PI_URL ?? "http://localhost:8000";
+const PI_URL =
+  process.env.NEXT_PUBLIC_RASPBERRY_PI_URL ?? "http://localhost:8000";
 
 // 2×8 grid, 750 mm column spacing, 1000 mm row spacing
 const ROWS = 2;
@@ -30,19 +31,22 @@ async function main() {
   console.log({ admin });
 
   // ── ScanConfig ─────────────────────────────────────────────────────────────
-  const existing = await prisma.scanConfig.findFirst({ where: { isDefault: true } });
+  const existing = await prisma.scanConfig.findFirst({
+    where: { isDefault: true },
+  });
   if (!existing) {
     const defaultConfig = await prisma.scanConfig.create({
       data: {
         name: "Default",
-        description: "Default 2×8 grid — 750mm column spacing, 1000mm row spacing",
+        description:
+          "Default 2×8 grid — 750mm column spacing, 1000mm row spacing",
         isDefault: true,
         cols: COLS,
         rows: ROWS,
         gapXMm: GAP_X_MM,
         gapYMm: GAP_Y_MM,
-        paddingXMm: 0.0,
-        paddingYMm: 0.0,
+        startXMm: 0.0,
+        startYMm: 0.0,
         captureOffsets: [
           {
             z_mm: 50.0,

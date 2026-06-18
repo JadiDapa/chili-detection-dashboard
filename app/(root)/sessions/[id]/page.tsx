@@ -7,6 +7,10 @@ import SessionCaptures from "@/components/root/sessions/SessionCaptures";
 import { SessionService } from "@/server/services/session.service";
 import SessionControl from "@/components/root/sessions/SessionControl";
 
+// Always render fresh from the DB so a just-created session is available on
+// first navigation (no stale Full Route / Router Cache "Session Not Found").
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage({
   params,
 }: {

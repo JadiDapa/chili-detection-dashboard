@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ChevronDown,
-  ChevronUp,
-  Leaf,
-  Ruler,
-} from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Leaf, Ruler } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -46,27 +40,37 @@ function captureToClassCount(c: CaptureType): ClassCount {
   };
 }
 
-function ClassBarList({ classes, total }: { classes: ClassCount; total: number }) {
+function ClassBarList({
+  classes,
+  total,
+}: {
+  classes: ClassCount;
+  total: number;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
-      {(Object.entries(classes) as [FruitClass, number][]).map(([label, count]) => {
-        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-        return (
-          <div key={label} className="flex items-center gap-2">
-            <span className="w-12 text-[10px] text-zinc-400">{label}</span>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-300 dark:bg-zinc-700">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  CLASS_BAR_COLOR[label],
-                )}
-                style={{ width: `${pct}%` }}
-              />
+      {(Object.entries(classes) as [FruitClass, number][]).map(
+        ([label, count]) => {
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          return (
+            <div key={label} className="flex items-center gap-2">
+              <span className="w-12 text-[10px] text-zinc-400">{label}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-300 dark:bg-zinc-700">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-500",
+                    CLASS_BAR_COLOR[label],
+                  )}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="w-6 text-right text-[10px] text-zinc-400">
+                {count}
+              </span>
             </div>
-            <span className="w-6 text-right text-[10px] text-zinc-400">{count}</span>
-          </div>
-        );
-      })}
+          );
+        },
+      )}
     </div>
   );
 }
@@ -102,25 +106,41 @@ function CaptureCard({ capture }: { capture: CaptureType }) {
           <span className="text-xs text-zinc-500">Total</span>
           <span className="text-primary text-sm font-bold">{total}</span>
         </div>
-        {(Object.entries(classes) as [FruitClass, number][]).map(([label, count]) => (
-          <div key={label} className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <span className={cn("h-1.5 w-1.5 rounded-full", CLASS_DOT_COLOR[label])} />
-              <span className="text-xs text-zinc-400">{label}</span>
+        {(Object.entries(classes) as [FruitClass, number][]).map(
+          ([label, count]) => (
+            <div
+              key={label}
+              className="flex w-full items-center justify-between"
+            >
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    CLASS_DOT_COLOR[label],
+                  )}
+                />
+                <span className="text-xs text-zinc-400">{label}</span>
+              </div>
+              <span className="text-foreground text-xs font-semibold">
+                {count}
+              </span>
             </div>
-            <span className="text-foreground text-xs font-semibold">{count}</span>
-          </div>
-        ))}
+          ),
+        )}
         {capture.heightCm != null && (
           <div className="mt-1 flex items-center justify-between border-t pt-1">
             <span className="text-[10px] text-zinc-500">Height</span>
-            <span className="text-[10px] text-zinc-400">{capture.heightCm} cm</span>
+            <span className="text-[10px] text-zinc-400">
+              {capture.heightCm} cm
+            </span>
           </div>
         )}
         {capture.moisturePct != null && (
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-zinc-500">Moisture</span>
-            <span className="text-[10px] text-zinc-400">{capture.moisturePct}%</span>
+            <span className="text-[10px] text-zinc-400">
+              {capture.moisturePct}%
+            </span>
           </div>
         )}
       </div>
@@ -203,7 +223,9 @@ export default function SessionDetail({
         <div className="bg-muted rounded-xl p-3">
           <p className="mb-1 text-[10px] text-zinc-500">Avg Moisture</p>
           <p className="text-lg font-medium">
-            {session.avgMoisturePct != null ? `${session.avgMoisturePct}%` : "—"}
+            {session.avgMoisturePct != null
+              ? `${session.avgMoisturePct}%`
+              : "—"}
           </p>
         </div>
         <div className="bg-muted rounded-xl p-3">
@@ -234,7 +256,9 @@ export default function SessionDetail({
             <p className="font-medium">Scanned Fruit</p>
             <div className="flex items-center gap-1.5">
               <p className="text-xs text-zinc-400">Total:</p>
-              <p className="text-primary text-xs font-semibold">{totalFruits}</p>
+              <p className="text-primary text-xs font-semibold">
+                {totalFruits}
+              </p>
             </div>
           </div>
           <ClassBarList classes={classes} total={totalFruits} />

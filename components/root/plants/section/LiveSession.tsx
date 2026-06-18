@@ -230,6 +230,11 @@ export default function LiveSession({
   // SCAN state
   const [scanCount, setScanCount] = useState(0);
   const [currentPlantId, setCurrentPlantId] = useState<number | null>(null);
+  // Gantry position relative to the current plant: "moving" while in transit,
+  // "at" once it has arrived (set by gantry_moving / gantry_moved events).
+  const [gantryStatus, setGantryStatus] = useState<"moving" | "at" | null>(
+    null,
+  );
   const [captures, setCaptures] = useState<LiveCapture[]>([]);
   const [capturesOpen, setCapturesOpen] = useState(true);
 
@@ -258,8 +263,14 @@ export default function LiveSession({
   function handleEvent(event: SSEEvent) {
     switch (event.type) {
       // ── SCAN events ────────────────────────────────────────────────────────
+      case "gantry_moving":
+        setCurrentPlantId(event.plant_id);
+        setGantryStatus("moving");
+        break;
+
       case "gantry_moved":
         setCurrentPlantId(event.plant_id);
+        setGantryStatus("at");
         break;
 
       case "plant_scanned": {
@@ -320,6 +331,7 @@ export default function LiveSession({
       case "session_complete":
         setPhase("complete");
         setCurrentPlantId(null);
+        setGantryStatus(null);
         esRef.current?.close();
         break;
 
@@ -336,6 +348,7 @@ export default function LiveSession({
     setPhase("creating");
     setError(null);
     setCurrentPlantId(null);
+    setGantryStatus(null);
     setScanCount(0);
     setCaptures([]);
     setTofProgress({ done: 0, total: 0 });
@@ -381,6 +394,7 @@ export default function LiveSession({
       await piApi.stopSession(sessionId);
       setPhase("stopped");
       setCurrentPlantId(null);
+      setGantryStatus(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to stop session");
     }
@@ -727,8 +741,10 @@ export default function LiveSession({
                   />
                 </div>
                 <p className="mt-1 text-right text-[10px] text-zinc-500">
-                  {currentPlantId && !isEnded
-                    ? `Scanning Plant #${String(currentPlantId).padStart(2, "0")}…`
+                  {currentPlantId && !isEnded && gantryStatus
+                    ? gantryStatus === "moving"
+                      ? `Moving to Plant #${String(currentPlantId).padStart(2, "0")}…`
+                      : `At Plant #${String(currentPlantId).padStart(2, "0")}`
                     : `${pct}%`}
                 </p>
               </div>

@@ -35,8 +35,8 @@ export interface ScanConfigSummary {
   rows: number;
   gapXMm: number;
   gapYMm: number;
-  paddingXMm: number;
-  paddingYMm: number;
+  startXMm: number;
+  startYMm: number;
   captureOffsets: CaptureOffsetData[];
 }
 
@@ -49,8 +49,8 @@ export interface WateringConfigSummary {
   rows: number;
   gapXMm: number;
   gapYMm: number;
-  paddingXMm: number;
-  paddingYMm: number;
+  startXMm: number;
+  startYMm: number;
   zMaxMm: number;
   zWaterMm: number;
   tofSamples: number;
@@ -76,8 +76,8 @@ type CreateForm = {
   rows: string;
   gapXMm: string;
   gapYMm: string;
-  paddingXMm: string;
-  paddingYMm: string;
+  startXMm: string;
+  startYMm: string;
   captureOffsets: OffsetRow[];
   zMaxMm: string;
   zWaterMm: string;
@@ -93,8 +93,8 @@ const EMPTY_FORM: CreateForm = {
   rows: "2",
   gapXMm: "750",
   gapYMm: "1000",
-  paddingXMm: "0",
-  paddingYMm: "0",
+  startXMm: "0",
+  startYMm: "0",
   captureOffsets: [],
   zMaxMm: "0",
   zWaterMm: "50",
@@ -116,8 +116,8 @@ function configToForm(
     rows: String(config.rows),
     gapXMm: String(config.gapXMm),
     gapYMm: String(config.gapYMm),
-    paddingXMm: String(config.paddingXMm),
-    paddingYMm: String(config.paddingYMm),
+    startXMm: String(config.startXMm),
+    startYMm: String(config.startYMm),
     captureOffsets: isWatering
       ? []
       : ((config as ScanConfigSummary).captureOffsets ?? []).map((o) => ({
@@ -269,8 +269,8 @@ export default function StartSessionDialog({
         rows: parseInt(form.rows) || 2,
         gapXMm: parseFloat(form.gapXMm) || 750,
         gapYMm: parseFloat(form.gapYMm) || 1000,
-        paddingXMm: parseFloat(form.paddingXMm) || 0,
-        paddingYMm: parseFloat(form.paddingYMm) || 0,
+        startXMm: parseFloat(form.startXMm) || 0,
+        startYMm: parseFloat(form.startYMm) || 0,
       };
       const body =
         sessionType === "SCAN"
@@ -333,8 +333,8 @@ export default function StartSessionDialog({
         rows: parseInt(form.rows) || 2,
         gapXMm: parseFloat(form.gapXMm) || 750,
         gapYMm: parseFloat(form.gapYMm) || 1000,
-        paddingXMm: parseFloat(form.paddingXMm) || 0,
-        paddingYMm: parseFloat(form.paddingYMm) || 0,
+        startXMm: parseFloat(form.startXMm) || 0,
+        startYMm: parseFloat(form.startYMm) || 0,
       };
 
       const body =
@@ -565,8 +565,8 @@ function SelectStep({
                 {isSelected && (
                   <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-border/60 pt-3">
                     <Detail
-                      label="Padding"
-                      value={`${config.paddingXMm} × ${config.paddingYMm} mm`}
+                      label="First plant"
+                      value={`${config.startXMm} × ${config.startYMm} mm`}
                     />
                     {isWatering ? (
                       <>
@@ -712,14 +712,14 @@ function CreateStep({
                 onChange={(v) => onField("gapYMm", v)}
               />
               <NumField
-                label="Padding X (mm)"
-                value={form.paddingXMm}
-                onChange={(v) => onField("paddingXMm", v)}
+                label="First plant X (mm)"
+                value={form.startXMm}
+                onChange={(v) => onField("startXMm", v)}
               />
               <NumField
-                label="Padding Y (mm)"
-                value={form.paddingYMm}
-                onChange={(v) => onField("paddingYMm", v)}
+                label="First plant Y (mm)"
+                value={form.startYMm}
+                onChange={(v) => onField("startYMm", v)}
               />
             </div>
           </section>

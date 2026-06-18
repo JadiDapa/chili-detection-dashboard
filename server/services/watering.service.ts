@@ -9,8 +9,8 @@ export type WateringConfigData = {
   rows?: number;
   gapXMm?: number;
   gapYMm?: number;
-  paddingXMm?: number;
-  paddingYMm?: number;
+  startXMm?: number;
+  startYMm?: number;
   zMaxMm?: number;
   zWaterMm?: number;
   tofSamples?: number;
@@ -59,8 +59,8 @@ export const WateringService = {
         rows: data.rows ?? 2,
         gapXMm: data.gapXMm ?? 750.0,
         gapYMm: data.gapYMm ?? 1000.0,
-        paddingXMm: data.paddingXMm ?? 0.0,
-        paddingYMm: data.paddingYMm ?? 0.0,
+        startXMm: data.startXMm ?? 0.0,
+        startYMm: data.startYMm ?? 0.0,
         zMaxMm: data.zMaxMm ?? 0.0,
         zWaterMm: data.zWaterMm ?? 50.0,
         tofSamples: data.tofSamples ?? 5,
@@ -81,8 +81,8 @@ export const WateringService = {
         ...(data.rows !== undefined && { rows: data.rows }),
         ...(data.gapXMm !== undefined && { gapXMm: data.gapXMm }),
         ...(data.gapYMm !== undefined && { gapYMm: data.gapYMm }),
-        ...(data.paddingXMm !== undefined && { paddingXMm: data.paddingXMm }),
-        ...(data.paddingYMm !== undefined && { paddingYMm: data.paddingYMm }),
+        ...(data.startXMm !== undefined && { startXMm: data.startXMm }),
+        ...(data.startYMm !== undefined && { startYMm: data.startYMm }),
         ...(data.zMaxMm !== undefined && { zMaxMm: data.zMaxMm }),
         ...(data.zWaterMm !== undefined && { zWaterMm: data.zWaterMm }),
         ...(data.tofSamples !== undefined && { tofSamples: data.tofSamples }),
@@ -108,8 +108,8 @@ export const WateringService = {
     rows: number;
     gapXMm: number;
     gapYMm: number;
-    paddingXMm: number;
-    paddingYMm: number;
+    startXMm: number;
+    startYMm: number;
     zMaxMm: number;
     zWaterMm: number;
     tofSamples: number;
@@ -121,8 +121,8 @@ export const WateringService = {
       rows: config.rows,
       gap_x_mm: config.gapXMm,
       gap_y_mm: config.gapYMm,
-      padding_x_mm: config.paddingXMm,
-      padding_y_mm: config.paddingYMm,
+      start_x_mm: config.startXMm,
+      start_y_mm: config.startYMm,
       z_max_mm: config.zMaxMm,
       z_water_mm: config.zWaterMm,
       tof_samples: config.tofSamples,

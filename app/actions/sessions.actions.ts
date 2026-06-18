@@ -18,5 +18,6 @@ export async function createSessionAction(
     wateringConfigId,
   );
   revalidatePath("/plants");
+  revalidatePath("/sessions");
   return { id: session.id, sessionType: session.sessionType };
 }
