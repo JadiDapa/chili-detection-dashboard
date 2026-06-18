@@ -6,7 +6,7 @@ import SignUpForm from "@/components/auth/sign-up/SignUpForm";
 export default function SignUpPage() {
   return (
     <section className="flex min-h-screen overflow-hidden ">
-      <main className="flex flex-col w-[45%] items-center justify-center bg-card  lg:px-40 rounded-e-4xl shadow-2xl">
+      <main className="bg-card flex w-full flex-col items-center justify-center p-8 shadow-2xl lg:w-[45%] lg:rounded-e-4xl lg:px-40">
         <AuthHeader
           title="Sign Up Now!"
           subtitle="Sebelum melangkah lebih lanjut, silahkan masuk terlebih dahulu!"

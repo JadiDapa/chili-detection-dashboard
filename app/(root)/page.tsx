@@ -12,14 +12,14 @@ import { Leaf, BoxSelectIcon, Thermometer, Sun } from "lucide-react";
 export default function DashboardPage() {
   return (
     <main className="min-h-screen w-full overflow-hidden pt-2">
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 lg:flex-row">
         {/* ════ LEFT COLUMN ════ */}
-        <div className="flex flex-2 flex-col gap-2">
+        <div className="flex flex-col gap-2 lg:flex-2">
           {/* Schedule */}
           <ScheduleReminder />
 
           {/* Stats 2×2 */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Card className="flex flex-col gap-1 border-none p-4 shadow-none">
               <div className="flex max-w-[80%] items-center gap-2">
                 <div className="bg-muted flex items-center justify-center rounded-full p-3">
@@ -89,7 +89,7 @@ export default function DashboardPage() {
           {/* Farm Resource Usage */}
           <WaterResourceUsage />
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <SmallStatCard
               icon={Thermometer}
               label="Environment Temperature"
@@ -115,7 +115,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ════ RIGHT COLUMN ════ */}
-        <div className="flex flex-3 flex-col gap-2">
+        <div className="flex flex-col gap-2 lg:flex-3">
           <GreenhouseCam
             streamUrl="http://YOUR_CAMERA_IP/stream" // ← your MJPEG/HLS URL
             streamType="mjpeg"

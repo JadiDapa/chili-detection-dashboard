@@ -9,20 +9,20 @@ import { Button } from "@/components/ui/button";
 export default function PlantsPage() {
   return (
     <main className="min-h-screen w-full gap-3 overflow-hidden pt-2">
-      <div className="flex w-full items-center justify-between">
+      <div className="flex w-full items-center justify-between gap-3">
         <PageHeader
           title="All Plants"
           subtitle="Every chili tree that planted on Elektro Unsri Greenhouse's"
         />
-        <Button>
-          Start Session <Play />
+        <Button className="shrink-0">
+          <span className="hidden sm:inline">Start Session</span> <Play />
         </Button>
       </div>
-      <div className="flex gap-3 py-4">
+      <div className="flex flex-col gap-3 py-4 lg:flex-row">
         <div className="flex flex-1 gap-3">
           <div className="flex-1 gap-3 space-y-4">
             {/* Stats */}
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Card className="w-full border-none p-4 shadow-none">
                 <div className="flex items-center gap-3">
                   <div className="bg-muted rounded-full p-3">
@@ -59,9 +59,9 @@ export default function PlantsPage() {
             <RadialChart />
           </div>
         </div>
-        <div className="min-h-screen w-px bg-slate-300"></div>
+        <div className="hidden min-h-screen w-px bg-slate-300 lg:block"></div>
         {/* Right Side */}
-        <div className="flex-2 space-y-3">
+        <div className="space-y-3 lg:flex-2">
           <PlanterBedCard
             label="Planter Bed 01"
             streamUrl="http://100.127.114.61:8000/camera/stream"

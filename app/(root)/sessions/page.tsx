@@ -23,7 +23,7 @@ export default async function SessionsPage({ searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6">
-      <div className="flex flex-col items-center justify-between lg:flex-row">
+      <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <PageHeader
           title="Session List"
           subtitle="These are all the sessions that you have created!"
@@ -36,8 +36,8 @@ export default async function SessionsPage({ searchParams }: PageProps) {
 
       {/* SEARCH BAR */}
       <div>
-        <div className="bg-card flex w-full items-center justify-between rounded-2xl border p-2 px-6">
-          <div className="bg-card flex w-100 items-center gap-3 rounded-full border px-4 py-1">
+        <div className="bg-card flex w-full items-center justify-between rounded-2xl border p-2 sm:px-6">
+          <div className="bg-card flex w-full items-center gap-3 rounded-full border px-4 py-1 sm:w-100">
             <Search />
             <Input
               placeholder="Search Session Name..."

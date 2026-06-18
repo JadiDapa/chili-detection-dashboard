@@ -17,21 +17,21 @@ export default async function PlantSections({
   const { section } = await params;
 
   return (
-    <main className="flex min-h-screen w-full gap-3 overflow-hidden py-2 pe-3">
-      <div className="flex-5 px-3">
-        <div className="flex items-center justify-between">
+    <main className="flex min-h-screen w-full flex-col gap-3 overflow-hidden py-2 lg:flex-row lg:pe-3">
+      <div className="min-w-0 px-3 lg:flex-5">
+        <div className="flex items-center justify-between gap-3">
           <PageHeader
             title={`Section: ${section}`}
             subtitle="Live feed and detailed information about this planter bed"
           />
-          <Button>
-            Start Session <Play />
+          <Button className="shrink-0">
+            <span className="hidden sm:inline">Start Session</span> <Play />
           </Button>
         </div>
 
-        <div className="mt-4 flex-3">
+        <div className="mt-4">
           {/* Live Cam */}
-          <div className="relative min-h-120 flex-3 overflow-hidden rounded-xl bg-zinc-900">
+          <div className="relative min-h-60 overflow-hidden rounded-xl bg-zinc-900 sm:min-h-120">
             <PlantsCam
               label={`Planter Bed ${section}`}
               streamUrl={"http://100.127.114.61:8000/camera/stream"}
@@ -41,7 +41,7 @@ export default async function PlantSections({
           <div className="flex flex-col gap-3 py-3 pr-1 pb-4">
             <SectionOverviewStats />
             <ScanningResultChart />
-            <div className="flex gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <ServoPanTiltControl />
               <GantryControl />
               <HardwarePanel />

@@ -14,7 +14,7 @@ export default async function SignInPage() {
     <section className="flex min-h-screen overflow-hidden">
       <AuthCarousel />
 
-      <main className="bg-card flex w-[45%] flex-col items-center justify-center rounded-e-4xl p-8 shadow-xl lg:px-40">
+      <main className="bg-card flex w-full flex-col items-center justify-center p-8 shadow-xl lg:w-[45%] lg:rounded-e-4xl lg:px-40">
         <AuthHeader
           title="Sign In Now!"
           subtitle="Sebelum melangkah lebih lanjut, silahkan masuk terlebih dahulu!"

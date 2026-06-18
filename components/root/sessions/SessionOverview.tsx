@@ -23,7 +23,7 @@ export default function SessionOverview({ session }: { session: SessionType }) {
       : null;
 
   return (
-    <Card className="col-span-5 lg:col-span-3">
+    <Card className="lg:col-span-3">
       {/* Header */}
       <CardHeader className="space-y-2">
         <div className="flex items-center justify-between">

@@ -56,15 +56,15 @@ export function PlanterBedCard({
   return (
     <Link
       href={link}
-      className="bg-card flex cursor-pointer overflow-hidden rounded-2xl border border-none shadow-none transition hover:-translate-y-1 hover:scale-[100.5%] hover:brightness-90"
+      className="bg-card flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-none shadow-none transition hover:-translate-y-1 hover:scale-[100.5%] hover:brightness-90 sm:flex-row"
     >
       {/* Camera */}
-      <div className="relative min-h-50 flex-3 bg-zinc-900">
+      <div className="relative min-h-50 bg-zinc-900 sm:flex-3">
         <PlantsCam label={label} streamUrl={streamUrl} />
       </div>
 
       {/* Info panel */}
-      <div className="flex min-w-0 flex-2 flex-col gap-3 p-4">
+      <div className="flex min-w-0 flex-col gap-3 p-4 sm:flex-2">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -119,7 +119,7 @@ export function PlanterBedCard({
             </p>
             <p className="text-muted-foreground text-[10px]">{total} total</p>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
             {scanItems.map(({ key, label, color }) => (
               <div
                 key={key}

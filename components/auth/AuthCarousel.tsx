@@ -27,7 +27,7 @@ export default function AuthCarousel() {
   }, [images.length]);
 
   return (
-    <div className="relative flex-1">
+    <div className="relative hidden flex-1 lg:block">
       <figure>
         <Image
           src={

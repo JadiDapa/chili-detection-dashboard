@@ -31,7 +31,7 @@ export default async function DashboardPage({
   return (
     <main className="min-h-screen w-full space-y-8 overflow-hidden border bg-white p-4 md:rounded-2xl lg:p-6">
       {/* PAGE HEADER */}
-      <div className="flex flex-col items-center justify-between lg:flex-row">
+      <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <PageHeader
           title={`Session #${session?.title}`}
           subtitle="Control and monitor your session details here."

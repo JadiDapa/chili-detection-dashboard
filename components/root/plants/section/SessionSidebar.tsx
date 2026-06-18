@@ -148,7 +148,7 @@ export default function PlantSessionSidebar() {
   }
 
   return (
-    <div className="bg-card text-foreground flex h-full w-100 flex-col rounded-xl px-3">
+    <div className="bg-card text-foreground mx-3 flex h-full flex-col rounded-xl px-3 lg:mx-0 lg:w-100 lg:shrink-0">
       {view === "list" && (
         <div className="flex items-center justify-between px-1 pt-5 pb-3">
           <div>
