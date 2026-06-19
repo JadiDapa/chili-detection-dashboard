@@ -255,6 +255,14 @@ export const SessionService = {
   // Idempotent: posting the same session_id twice replaces captures and
   // updates summary fields without creating duplicates.
   async syncFromPi(payload: PiSyncPayload) {
+    // The RPi holds the Next.js integer Session id (passed to it at /start) and
+    // the live per-plant routes already update that row by id. So reconcile the
+    // end-of-session sync by that same primary id — NOT by externalId, which the
+    // live flow never sets (matching by externalId would create a duplicate row).
+    // externalId is still stored for traceability.
+    const sessionId = parseInt(payload.session_id, 10);
+    if (isNaN(sessionId)) throw new Error(`Invalid session_id: ${payload.session_id}`);
+
     const bedId = parseInt(payload.bed_id, 10);
     if (isNaN(bedId)) throw new Error(`Invalid bed_id: ${payload.bed_id}`);
 
@@ -303,9 +311,9 @@ export const SessionService = {
 
     return prisma.$transaction(async (tx) => {
       const session = await tx.session.upsert({
-        where: { externalId: payload.session_id },
-        create: { externalId: payload.session_id, ...sessionData },
-        update: sessionData,
+        where: { id: sessionId },
+        create: { id: sessionId, externalId: payload.session_id, ...sessionData },
+        update: { externalId: payload.session_id, ...sessionData },
       });
 
       // Replace captures atomically — safe because Captures are leaf nodes
