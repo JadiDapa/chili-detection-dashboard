@@ -22,7 +22,12 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { piApi, PI_URL, SSEEvent, PiDetection } from "@/lib/pi";
+import { Prisma } from "@/generated/prisma";
 import Image from "next/image";
+import { CrosshairOverlay } from "../CrosshairOverlay";
+
+type CaptureRow = Prisma.CapturesGetPayload<Record<string, never>>;
+type WateringStopRow = Prisma.WateringStopGetPayload<Record<string, never>>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -139,13 +144,16 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
           </p>
         </div>
         {cap.image_url ? (
-          <Image
-            src={cap.image_url}
-            alt={`Plant ${cap.plant_id}`}
-            unoptimized
-            className="object-cover object-center"
-            fill
-          />
+          <>
+            <Image
+              src={cap.image_url}
+              alt={`Plant ${cap.plant_id}`}
+              unoptimized
+              className="object-cover object-center"
+              fill
+            />
+            <CrosshairOverlay />
+          </>
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <span className="text-[10px] text-zinc-500">No image</span>
@@ -207,6 +215,12 @@ interface LiveSessionProps {
   sessionType?: "SCAN" | "WATERING";
   scanConfig?: Record<string, unknown> | null;
   wateringConfig?: Record<string, unknown> | null;
+  /** DB status of the session — drives auto-reconnect for RUNNING sessions. */
+  status?: string;
+  /** Captures already persisted (used to seed the live view on reconnect). */
+  initialCaptures?: CaptureRow[];
+  /** Watering stops already persisted (used to seed the live view on reconnect). */
+  initialStops?: WateringStopRow[];
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -217,6 +231,9 @@ export default function LiveSession({
   sessionType = "SCAN",
   scanConfig,
   wateringConfig,
+  status,
+  initialCaptures,
+  initialStops,
 }: LiveSessionProps) {
   const sessionId = initialSessionId;
   const isWatering = sessionType === "WATERING";
@@ -259,6 +276,69 @@ export default function LiveSession({
       esRef.current?.close();
     };
   }, []);
+
+  // Reconnect to a session the RPi is already running: stream live events
+  // without re-issuing a start. Seed the panels from data persisted so far so
+  // prior plant cards / progress appear immediately, then SSE appends new ones.
+  useEffect(() => {
+    if (status !== "RUNNING") return;
+    seedFromInitial();
+    connect();
+    setPhase("running");
+    setStartTime(
+      new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Seed live state from already-persisted captures / watering stops.
+  function seedFromInitial() {
+    if (!isWatering && initialCaptures && initialCaptures.length > 0) {
+      const seeded: LiveCapture[] = initialCaptures
+        .slice()
+        .sort((a, b) => (a.plantIndex ?? 0) - (b.plantIndex ?? 0))
+        .map((c) => ({
+          plant_id: c.plantIndex ?? 0,
+          image_url: c.imageUrl || null,
+          classes: {
+            Ripe: c.ripeCount,
+            Unripe: c.unripeCount,
+            Turning: c.turningCount,
+            Broken: c.brokenCount,
+          },
+          height_cm: c.heightCm,
+          moisture_pct: c.moisturePct,
+        }));
+      setCaptures(seeded);
+      setScanCount(seeded.length);
+    }
+    if (isWatering && initialStops && initialStops.length > 0) {
+      setWateringStops(
+        initialStops
+          .slice()
+          .sort((a, b) => a.stopIndex - b.stopIndex)
+          .map((s) => ({
+            stop_index: s.stopIndex,
+            x_mm: s.xMm,
+            y_mm: s.yMm,
+            duration_sec: s.valveDurationSec,
+          })),
+      );
+      setScanCount(initialStops.length);
+    }
+  }
+
+  // Open the SSE stream for this session and route events into handleEvent.
+  function connect() {
+    const es = piApi.connectEvents(sessionId, handleEvent, () => {
+      setPhase("error");
+      setError(`Lost connection to Pi. Check that it is online at ${PI_URL}.`);
+    });
+    esRef.current = es;
+  }
 
   function handleEvent(event: SSEEvent) {
     switch (event.type) {
@@ -365,13 +445,7 @@ export default function LiveSession({
         isWatering ? wateringConfig : scanConfig,
       );
 
-      const es = piApi.connectEvents(sessionId, handleEvent, () => {
-        setPhase("error");
-        setError(
-          `Lost connection to Pi. Check that it is online at ${PI_URL}.`,
-        );
-      });
-      esRef.current = es;
+      connect();
       setPhase("running");
       setStartTime(
         new Date().toLocaleTimeString([], {
@@ -398,6 +472,45 @@ export default function LiveSession({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to stop session");
     }
+  }
+
+  // ── Emergency stop ────────────────────────────────────────────────────────
+  // Halts the gantry and de-energizes the drivers immediately (RPi sends STOP
+  // then EN off). Does not touch session bookkeeping — the scan loop will error
+  // out on its own, preserving whatever was scanned so far.
+  async function handleEStop() {
+    try {
+      await piApi.gantryStop();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Emergency stop failed");
+    }
+  }
+
+  // ── Force stop & reset ────────────────────────────────────────────────────
+  // Recovery for a session stuck in RUNNING (e.g. the RPi task died without
+  // emitting a terminal event). Halts the gantry best-effort and marks the
+  // dashboard session STOPPED so it stops blocking new sessions and its
+  // collected data becomes viewable in the detail view.
+  async function handleForceReset() {
+    esRef.current?.close();
+    try {
+      await piApi.gantryStop();
+    } catch {
+      // RPi may be unreachable — clear dashboard state regardless.
+    }
+    try {
+      await fetch(`/api/sessions/${sessionId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "stopped" }),
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reset session");
+      return;
+    }
+    setPhase("stopped");
+    setCurrentPlantId(null);
+    setGantryStatus(null);
   }
 
   // ── Derived ─────────────────────────────────────────────────────────────────
@@ -503,6 +616,18 @@ export default function LiveSession({
           </p>
           <p className="font-mono text-[10px] text-zinc-500">URL: {PI_URL}</p>
         </div>
+      )}
+
+      {/* ── Emergency stop (always reachable while the gantry may be moving) ── */}
+      {(phase === "creating" || phase === "running") && (
+        <button
+          onClick={handleEStop}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-red-600 bg-red-600 py-2.5 text-[13px] font-bold tracking-wide text-white uppercase transition-colors hover:bg-red-700"
+          title="Immediately halt the gantry and cut motor power"
+        >
+          <Square size={14} fill="currentColor" />
+          Emergency Stop
+        </button>
       )}
 
       <div className="my-3 border-t" />
@@ -838,13 +963,22 @@ export default function LiveSession({
       {/* ── Action buttons ── */}
       <div className="flex flex-col gap-2 pb-4">
         {phase === "running" && (
-          <button
-            onClick={handleStop}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500/10 py-2.5 text-[12px] font-semibold text-red-500 transition-colors hover:bg-red-500/20"
-          >
-            <Square size={12} fill="currentColor" />
-            Stop Session
-          </button>
+          <>
+            <button
+              onClick={handleStop}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500/10 py-2.5 text-[12px] font-semibold text-red-500 transition-colors hover:bg-red-500/20"
+            >
+              <Square size={12} fill="currentColor" />
+              Stop Session
+            </button>
+            <button
+              onClick={handleForceReset}
+              className="flex w-full items-center justify-center gap-2 rounded-lg py-1.5 text-[11px] font-medium text-zinc-500 transition-colors hover:text-red-500"
+              title="Halt the gantry and force this session to stop (use if it's stuck)"
+            >
+              Force stop &amp; reset
+            </button>
+          </>
         )}
 
         {(phase === "complete" || phase === "stopped") && (
@@ -865,6 +999,14 @@ export default function LiveSession({
             >
               <Play size={12} fill="currentColor" />
               Retry
+            </button>
+            <button
+              onClick={handleForceReset}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-500/10 py-2.5 text-[12px] font-semibold text-red-500 transition-colors hover:bg-red-500/20"
+              title="Halt the gantry and force this session to stop (use if it's stuck in RUNNING)"
+            >
+              <Square size={12} fill="currentColor" />
+              Force stop &amp; reset
             </button>
             <button
               onClick={onBack}

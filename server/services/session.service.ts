@@ -56,6 +56,41 @@ function mapStatus(s: PiSyncPayload["status"]): SessionStatus {
   return SessionStatus.ERROR;
 }
 
+// Aggregate whatever captures were persisted so far into the session summary
+// fields. Used when a session ends WITHOUT a normal completion (stopped/error)
+// so the detail view can still show "what it got" instead of a blank summary.
+async function buildPartialSummary(sessionId: number) {
+  const captures = await prisma.captures.findMany({ where: { sessionId } });
+  if (captures.length === 0) return null;
+
+  const sum = (pick: (c: (typeof captures)[number]) => number) =>
+    captures.reduce((acc, c) => acc + pick(c), 0);
+  const avg = (vals: number[]) =>
+    vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+
+  const heights = captures
+    .map((c) => c.heightCm)
+    .filter((h): h is number => h != null);
+  const moistures = captures
+    .map((c) => c.moisturePct)
+    .filter((m): m is number => m != null);
+  const harvestReadyIds = captures
+    .filter((c) => c.ripeCount > 3)
+    .map((c) => c.plantIndex)
+    .filter((p): p is number => p != null);
+
+  return {
+    totalPlants: captures.length,
+    totalRipe: sum((c) => c.ripeCount),
+    totalTurning: sum((c) => c.turningCount),
+    totalUnripe: sum((c) => c.unripeCount),
+    totalDamaged: sum((c) => c.brokenCount),
+    avgHeightCm: avg(heights),
+    avgMoisturePct: avg(moistures),
+    harvestReadyIds: JSON.stringify(harvestReadyIds),
+  };
+}
+
 export const SessionService = {
   async list() {
     return prisma.session.findMany({
@@ -135,11 +170,14 @@ export const SessionService = {
       stopped: SessionStatus.STOPPED,
       error: SessionStatus.ERROR,
     };
-    const data: { status: SessionStatus; startedAt?: Date; completedAt?: Date } = {
-      status: statusMap[status],
-    };
+    const data: Prisma.SessionUpdateInput = { status: statusMap[status] };
     if (status === "running") data.startedAt = new Date();
-    if (status === "stopped" || status === "error") data.completedAt = new Date();
+    if (status === "stopped" || status === "error") {
+      data.completedAt = new Date();
+      // Surface whatever data was collected before the early end.
+      const partial = await buildPartialSummary(sessionId);
+      if (partial) Object.assign(data, partial);
+    }
     return prisma.session.update({ where: { id: sessionId }, data });
   },
 
@@ -203,10 +241,14 @@ export const SessionService = {
   },
 
   async errorSession(sessionId: number) {
-    return prisma.session.update({
-      where: { id: sessionId },
-      data: { status: SessionStatus.ERROR, completedAt: new Date() },
-    });
+    const data: Prisma.SessionUpdateInput = {
+      status: SessionStatus.ERROR,
+      completedAt: new Date(),
+    };
+    // Keep the partial scan results captured before the failure.
+    const partial = await buildPartialSummary(sessionId);
+    if (partial) Object.assign(data, partial);
+    return prisma.session.update({ where: { id: sessionId }, data });
   },
 
   // Upsert a completed session POSTed by the RPi after a scan ends.
@@ -238,14 +280,15 @@ export const SessionService = {
 
     // Fetch and save images before opening the DB transaction.
     // Network I/O must not live inside a transaction.
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
+    // Store RELATIVE URLs so they resolve against whatever origin serves the
+    // dashboard (see captures image route for rationale).
     const resolvedImages = await Promise.all(
       payload.plant_scans.map(async (scan) => {
         if (!scan.image_url) return { imageUrl: "", imageLocal: false };
         try {
           const filename = await fileUploadFromUrl(scan.image_url, "uploads");
           return {
-            imageUrl: `${baseUrl}/api/uploads/${filename}`,
+            imageUrl: `/api/uploads/${filename}`,
             imageLocal: true,
           };
         } catch (err) {

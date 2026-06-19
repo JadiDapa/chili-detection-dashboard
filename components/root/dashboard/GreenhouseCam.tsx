@@ -1,7 +1,7 @@
 // components/GreenhouseCam.tsx
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Camera,
   CameraOff,
@@ -28,6 +28,38 @@ export function GreenhouseCam({
 }: GreenhouseCamProps) {
   const [error, setError] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const retry = useCallback(() => {
+    setError(false);
+    setRetryCount((c) => c + 1);
+  }, []);
+
+  // Recover a stalled/broken stream automatically: retry shortly after an error
+  // and whenever the tab/window becomes visible again (a backgrounded MJPEG
+  // freezes without firing onError).
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(retry, 5000);
+    return () => clearTimeout(t);
+  }, [error, retry]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") retry();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [retry]);
+
+  // Cache-busting suffix forces the browser to re-request on reconnect.
+  const bustedUrl = streamUrl
+    ? `${streamUrl}${streamUrl.includes("?") ? "&" : "?"}_r=${retryCount}`
+    : undefined;
 
   const content = (
     <div
@@ -41,7 +73,7 @@ export function GreenhouseCam({
           // MJPEG: browser natively renders as a motion JPEG
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={streamUrl}
+            src={bustedUrl}
             alt="Live greenhouse feed"
             className="h-full w-full object-cover"
             onError={() => setError(true)}
@@ -49,7 +81,7 @@ export function GreenhouseCam({
         ) : (
           // HLS / mp4 fallback
           <video
-            src={streamUrl}
+            src={bustedUrl}
             autoPlay
             muted
             playsInline

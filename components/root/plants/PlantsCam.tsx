@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { WifiOff, RefreshCw, Camera } from "lucide-react";
+import { CrosshairOverlay } from "./CrosshairOverlay";
 
 type StreamState = "connecting" | "live" | "error" | "offline";
 
@@ -39,6 +40,22 @@ export function PlantsCam({
       if (retryTimer.current) clearTimeout(retryTimer.current);
     };
   }, [state, retry]);
+
+  // A backgrounded tab freezes the MJPEG <img> WITHOUT firing onError, so on
+  // return it shows a stale frame and never recovers. Force a reconnect (new
+  // cache-busted URL) whenever the tab/window becomes visible again — this also
+  // covers returning from another window or a soft refresh.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") retry();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [retry]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-zinc-950">
@@ -87,6 +104,9 @@ export function PlantsCam({
           </button>
         </div>
       )}
+
+      {/* ── Center crosshair (over the live feed) ── */}
+      {state === "live" && <CrosshairOverlay />}
 
       {/* ── Live indicator (top-left) ── */}
       {showLiveIndicator && state === "live" && (

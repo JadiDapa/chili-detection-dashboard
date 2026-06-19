@@ -257,8 +257,8 @@ function SessionRow({ session, onSelect }: { session: SessionType; onSelect: () 
           </div>
         )}
 
-        {/* ── Completed stats ── */}
-        {isDone && (
+        {/* ── Stats (completed, or partial data from a stopped/errored run) ── */}
+        {(isDone || isBad) && (
           isWatering ? <WateringStats session={session} /> : <ScanStats session={session} />
         )}
 

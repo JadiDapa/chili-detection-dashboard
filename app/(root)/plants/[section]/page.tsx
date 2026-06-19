@@ -1,5 +1,6 @@
 import PageHeader from "@/components/root/PageHeader";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
+import { piApi } from "@/lib/pi";
 import ScanningResultChart from "@/components/root/plants/section/ScanningResultChart";
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
 import GantryControl from "@/components/root/plants/section/GantryControl";
@@ -34,7 +35,7 @@ export default async function PlantSections({
           <div className="relative min-h-60 overflow-hidden rounded-xl bg-zinc-900 sm:min-h-120">
             <PlantsCam
               label={`Planter Bed ${section}`}
-              streamUrl={"http://100.127.114.61:8000/camera/stream"}
+              streamUrl={piApi.streamUrl()}
             />
           </div>
 

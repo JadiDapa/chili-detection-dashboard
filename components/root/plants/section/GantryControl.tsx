@@ -142,11 +142,11 @@ export default function GantryControl() {
           />
           <AxisInput
             label="Z (mm)"
-            hint="0–200"
+            hint="0–800"
             value={zIn}
             onChange={setZIn}
             min={0}
-            max={200}
+            max={800}
             disabled={busy}
           />
           <AxisInput

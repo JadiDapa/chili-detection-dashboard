@@ -20,6 +20,8 @@ export const GET = async (
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": "inline", // or "attachment"
+        // Capture files are immutable once written — cache aggressively.
+        "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
   } catch (error) {

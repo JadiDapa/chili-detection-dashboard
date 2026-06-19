@@ -127,6 +127,10 @@ export default function PlantSessionSidebar() {
         sessionType === "WATERING" ? (configId ?? undefined) : undefined,
       );
       setDialogOpen(false);
+      // Refetch so the just-created session is in `allSessions` before we
+      // navigate to it — otherwise the lookup at render time returns null and
+      // the detail view shows "Session not found" until a manual reload.
+      await fetchSessions();
       const p = new URLSearchParams(searchParams.toString());
       p.set("session", String(id));
       router.push(`?${p.toString()}`);
@@ -215,9 +219,13 @@ export default function PlantSessionSidebar() {
 
           {view === "live" && activeSession && (
             <LiveSession
+              key={activeSession.id}
               sessionId={String(activeSession.id)}
               onBack={handleLiveBack}
               sessionType={activeSession.sessionType as "SCAN" | "WATERING"}
+              status={activeSession.status}
+              initialCaptures={activeSession.captures}
+              initialStops={activeSession.wateringStops}
               scanConfig={
                 activeSession.scanConfigSnapshot as Record<
                   string,

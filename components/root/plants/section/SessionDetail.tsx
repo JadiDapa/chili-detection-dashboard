@@ -13,6 +13,7 @@ import { ClassCount } from "./LiveSession";
 import { SessionType } from "@/server/validators/session.validator";
 import { Prisma } from "@/generated/prisma";
 import Image from "next/image";
+import { CrosshairOverlay } from "../CrosshairOverlay";
 
 type CaptureType = Prisma.CapturesGetPayload<Record<string, never>>;
 type FruitClass = "Ripe" | "Unripe" | "Turning" | "Broken";
@@ -88,13 +89,16 @@ function CaptureCard({ capture }: { capture: CaptureType }) {
           </p>
         </div>
         {capture.imageUrl ? (
-          <Image
-            src={capture.imageUrl}
-            alt={`Plant ${capture.plantIndex}`}
-            unoptimized
-            className="object-cover object-center"
-            fill
-          />
+          <>
+            <Image
+              src={capture.imageUrl}
+              alt={`Plant ${capture.plantIndex}`}
+              unoptimized
+              className="object-cover object-center"
+              fill
+            />
+            <CrosshairOverlay />
+          </>
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <span className="text-[10px] text-zinc-500">No image</span>
