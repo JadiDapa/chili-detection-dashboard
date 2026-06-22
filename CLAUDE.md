@@ -41,7 +41,8 @@ Never query `prisma` directly in route handlers or components — always go thro
 **Auth** — use `getCurrentUser()` from `app/actions/user.actions.ts` in server components.
 
 **File uploads** — RPi-posted images saved to `uploads/` via `lib/file-upload.ts`,
-served at `/api/uploads/[filename]`. Store full URL (`NEXT_PUBLIC_BASE_URL/api/uploads/<name>`) in DB.
+served at `/api/uploads/[filename]`. Store the **relative** URL (`/api/uploads/<name>`) in
+the DB so it resolves against whatever origin serves the dashboard.
 
 **Client fetching** — axios instance at `lib/networks/axiosInstance.ts` reads
 `NEXT_PUBLIC_BASE_API_URL`. TanStack Query configured in `providers/Providers.tsx`.
@@ -65,20 +66,33 @@ Next.js is never in the SSE path. Do not add an SSE relay or proxy here.
 **`lib/pi.ts`** is the typed client for direct browser→RPi calls. Keep all RPi communication here.
 The `PI_URL` reads from `NEXT_PUBLIC_RASPBERRY_PI_URL` env var (not `NEXT_PUBLIC_BASE_API_URL`).
 
-**After a session ends**, RPi POSTs the full session result to Next.js for persistence:
+**How the RPi writes data here:**
 
-```
-POST /api/sessions/sync          — full session + all plant scans after completion
-```
+1. **Real time, during a session (primary path).** The RPi PATCHes status and POSTs each
+   plant's image, vision result, and sensor readings as it scans, keyed by the integer
+   session id:
+   - `PATCH /api/sessions/[id]/status`
+   - `POST  /api/sessions/[id]/captures/[plantIndex]/image | /vision | /sensors`
+   - `POST  /api/sessions/[id]/complete` | `/error`
+   These feed history *and* the live "reconnect to a running session" seed in `LiveSession`.
 
-This is the only time Next.js receives data from RPi. During a live session,
-Next.js is not involved — browser talks directly to RPi.
+2. **End-of-session `/api/sessions/sync` (fallback only).** A whole-session payload, sent
+   by the RPi **only if a real-time post failed** during the run (it tracks a `sync_dirty`
+   flag and may also replay from a local outbox after an outage). `syncFromPi` reconciles
+   by the **integer session id** (`SessionService.syncFromPi`), so a late sync updates the
+   existing row instead of creating a duplicate. It is idempotent (deletes + recreates
+   captures). In the normal case nothing is double-written.
 
-**RPi payload shape** (mirrors `PiSession` + `PiPlantScan[]` from `lib/pi.ts`):
+`bed_id` selects the Bed; `session_id` is the same integer `Session.id` Next.js created and
+passed to the RPi at `/start`. `externalId` is stored for traceability but is **not** the
+reconciliation key.
+
+**`/api/sessions/sync` payload shape** (mirrors `PiSession` + `PiPlantScan[]` from `lib/pi.ts`,
+see `PiSyncPayload` in `server/services/session.service.ts`):
 
 ```typescript
 {
-  session_id: string           // RPi's own ID — stored as externalId in Prisma
+  session_id: string           // the Next.js Session.id this run belongs to
   status: "complete" | "stopped" | "error"
   bed_id: string               // which Bed this session belongs to
   started_at: string
@@ -97,16 +111,10 @@ Next.js is not involved — browser talks directly to RPi.
 
 ## Migration status
 
-**Currently:** live sessions are 100% on RPi (SQLite). Next.js Prisma has no Session/Capture
-data. The `/api/sessions/sync` endpoint does not exist yet. `Capture` model in Prisma may be
-missing fields: `moisture_pct`, `valve_duration_sec`, `watering_reason`, `height_cm`.
-
-**Target:** RPi POSTs to `/api/sessions/sync` after every session ends. History, summaries,
-and analytics are all served from Next.js Prisma. Live session UI (`lib/pi.ts`, `LiveSession`
-component) stays unchanged.
-
-**Before writing any session/capture queries, check `prisma/schema/` for what fields
-actually exist.** Do not assume the target schema is in place.
+**Complete.** SQLite is gone from the RPi; Next.js (PostgreSQL via Prisma) is the only
+database. Session/Capture data is written here in real time during a session, with the
+`/api/sessions/sync` endpoint as the outage fallback (details above). The `Capture` model
+includes `heightCm`, `moisturePct`, `valveDurationSec`, `wateringReason`.
 
 ## Pages
 

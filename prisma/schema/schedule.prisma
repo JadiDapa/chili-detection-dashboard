@@ -1,0 +1,57 @@
+// Recurring daily schedule for unattended scan/watering sessions.
+// A ScheduledTask defines "what + when"; a ScheduleRun is the per-slot dispatch
+// log (dedup + history). The RPi polls /api/schedules/tick which mints the
+// PENDING Session — session ids are still created only by Next.js.
+
+enum ScheduleRunStatus {
+    DISPATCHED // a PENDING Session was created for this slot
+    SKIPPED // slot passed without running (missed downtime, or busy past grace)
+}
+
+model ScheduledTask {
+    id   Int     @id @default(autoincrement())
+    name String?
+
+    bedId Int
+    bed   Bed @relation(fields: [bedId], references: [id])
+
+    sessionType SessionType // SCAN | WATERING (reuses Session enum)
+
+    // Which preset to use; null → resolve to the default, matching SessionService.create
+    scanConfigId     Int?
+    scanConfig       ScanConfig?     @relation(fields: [scanConfigId], references: [id])
+    wateringConfigId Int?
+    wateringConfig   WateringConfig? @relation(fields: [wateringConfigId], references: [id])
+
+    timeOfDay  String // local "HH:MM"
+    daysOfWeek Int[] // 0=Sun..6=Sat; empty = every day
+    timezone   String  @default("Asia/Jakarta")
+    enabled    Boolean @default(true)
+
+    runs ScheduleRun[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([bedId])
+    @@index([enabled])
+}
+
+model ScheduleRun {
+    id Int @id @default(autoincrement())
+
+    scheduledTaskId Int
+    scheduledTask   ScheduledTask @relation(fields: [scheduledTaskId], references: [id], onDelete: Cascade)
+
+    scheduledFor DateTime // exact slot instant (UTC)
+    status       ScheduleRunStatus @default(DISPATCHED)
+    skipReason   String?
+
+    sessionId Int?     @unique
+    session   Session? @relation(fields: [sessionId], references: [id])
+
+    createdAt DateTime @default(now())
+
+    @@unique([scheduledTaskId, scheduledFor]) // dedup: one run per task per slot
+    @@index([scheduledTaskId])
+}

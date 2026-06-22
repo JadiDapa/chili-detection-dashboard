@@ -15,7 +15,8 @@ model ScanConfig {
     // Array of CaptureOffset: [{z_mm, x_offset_mm, y_offset_mm, servo_pan, servo_tilt}]
     captureOffsets Json
 
-    sessions Session[]
+    sessions       Session[]
+    scheduledTasks ScheduledTask[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

@@ -18,7 +18,8 @@ model WateringConfig {
     sweepSpeedMmSec Float @default(150.0)
     waterSpeedMmSec Float @default(100.0)
 
-    sessions Session[]
+    sessions       Session[]
+    scheduledTasks ScheduledTask[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

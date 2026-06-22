@@ -10,6 +10,7 @@ import {
   Leaf,
   Cylinder,
   DatabaseZapIcon,
+  CalendarClock,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
@@ -27,6 +28,7 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Environments", url: "/environments", icon: Activity },
   { title: "Plants", url: "/plants", icon: Leaf },
+  { title: "Schedule", url: "/schedule", icon: CalendarClock },
   { title: "Tree Chamber", url: "/chamber", icon: Cylinder },
   { title: "Dataset Collection", url: "/dataset", icon: DatabaseZapIcon },
 ];

@@ -58,6 +58,7 @@ model Session {
     // Relations
     captures      Captures[]
     wateringStops WateringStop[]
+    scheduleRun   ScheduleRun? // set when this session was created by a scheduled task
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
