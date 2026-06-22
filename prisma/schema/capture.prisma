@@ -13,6 +13,12 @@ model Captures {
     imageUrl   String
     imageLocal Boolean @default(true) // false = still pointing at RPi URL
 
+    // YOLO-annotated frame (boxes drawn). Null when YOLO ran in stub mode or
+    // rendering failed — the UI falls back to imageUrl. annotatedImageLocal
+    // mirrors imageLocal: false = still pointing at the RPi static URL.
+    annotatedImageUrl   String?
+    annotatedImageLocal Boolean @default(true)
+
     totalFruits  Int @default(0)
     ripeCount    Int @default(0)
     turningCount Int @default(0)

@@ -23,8 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { piApi, PI_URL, SSEEvent, PiDetection } from "@/lib/pi";
 import { Prisma } from "@/generated/prisma";
-import Image from "next/image";
-import { CrosshairOverlay } from "../CrosshairOverlay";
+import { CaptureImage } from "./CaptureImage";
 
 type CaptureRow = Prisma.CapturesGetPayload<Record<string, never>>;
 type WateringStopRow = Prisma.WateringStopGetPayload<Record<string, never>>;
@@ -43,6 +42,7 @@ export interface ClassCount {
 interface LiveCapture {
   plant_id: number;
   image_url: string | null;
+  annotated_url: string | null;
   classes: ClassCount;
   height_cm?: number | null;
   moisture_pct?: number | null;
@@ -137,29 +137,11 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
   const total = Object.values(cap.classes).reduce((a, b) => a + b, 0);
   return (
     <div className="bg-muted flex items-start gap-1 overflow-hidden rounded-lg">
-      <div className="relative h-44 w-56 shrink-0 overflow-hidden rounded-s-md bg-zinc-700">
-        <div className="absolute top-1 left-1 z-10 rounded-full bg-black/50 px-2 py-0.5">
-          <p className="text-[10px] font-medium text-white">
-            Plant #{String(cap.plant_id).padStart(2, "0")}
-          </p>
-        </div>
-        {cap.image_url ? (
-          <>
-            <Image
-              src={cap.image_url}
-              alt={`Plant ${cap.plant_id}`}
-              unoptimized
-              className="object-cover object-center"
-              fill
-            />
-            <CrosshairOverlay />
-          </>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-[10px] text-zinc-500">No image</span>
-          </div>
-        )}
-      </div>
+      <CaptureImage
+        plantId={cap.plant_id}
+        rawUrl={cap.image_url}
+        annotatedUrl={cap.annotated_url}
+      />
       <div className="flex w-full flex-col gap-1 p-2">
         <div className="flex w-full items-center justify-between border-b pb-1">
           <span className="text-xs text-zinc-500">Total</span>
@@ -303,6 +285,7 @@ export default function LiveSession({
         .map((c) => ({
           plant_id: c.plantIndex ?? 0,
           image_url: c.imageUrl || null,
+          annotated_url: c.annotatedImageUrl || null,
           classes: {
             Ripe: c.ripeCount,
             Unripe: c.unripeCount,
@@ -357,6 +340,7 @@ export default function LiveSession({
         const entry: LiveCapture = {
           plant_id: event.plant_id,
           image_url: event.image_url,
+          annotated_url: event.annotated_image_url,
           classes: detectionsToClassCount(event.detections),
         };
         setCaptures((prev) => {

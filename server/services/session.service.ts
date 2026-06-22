@@ -27,6 +27,7 @@ export type CreateCaptureInput = {
   row: number;
   col: number;
   imageUrl: string;
+  annotatedImageUrl?: string | null;
   totalFruits: number;
   ripeCount: number;
   turningCount: number;
@@ -199,6 +200,10 @@ export const SessionService = {
         col: body.col,
         imageUrl: body.imageUrl,
         imageLocal: true,
+        // RPi already POSTed the annotated frame through the image route, so this
+        // is a dashboard-hosted /api/uploads URL (or null in stub/no-render runs).
+        annotatedImageUrl: body.annotatedImageUrl ?? null,
+        annotatedImageLocal: true,
         totalFruits: body.totalFruits,
         ripeCount: body.ripeCount,
         turningCount: body.turningCount,
@@ -290,22 +295,36 @@ export const SessionService = {
     // Network I/O must not live inside a transaction.
     // Store RELATIVE URLs so they resolve against whatever origin serves the
     // dashboard (see captures image route for rationale).
+    const fetchImage = async (
+      url: string | null,
+      plantId: number,
+      label: string,
+    ): Promise<{ url: string | null; local: boolean }> => {
+      if (!url) return { url: null, local: false };
+      try {
+        const filename = await fileUploadFromUrl(url, "uploads");
+        return { url: `/api/uploads/${filename}`, local: true };
+      } catch (err) {
+        console.warn(
+          `[sync] ${label} image fetch failed for plant ${plantId}, falling back to RPi URL:`,
+          err,
+        );
+        return { url, local: false };
+      }
+    };
+
     const resolvedImages = await Promise.all(
       payload.plant_scans.map(async (scan) => {
-        if (!scan.image_url) return { imageUrl: "", imageLocal: false };
-        try {
-          const filename = await fileUploadFromUrl(scan.image_url, "uploads");
-          return {
-            imageUrl: `/api/uploads/${filename}`,
-            imageLocal: true,
-          };
-        } catch (err) {
-          console.warn(
-            `[sync] image fetch failed for plant ${scan.plant_id}, falling back to RPi URL:`,
-            err,
-          );
-          return { imageUrl: scan.image_url, imageLocal: false };
-        }
+        const [raw, annotated] = await Promise.all([
+          fetchImage(scan.image_url, scan.plant_id, "raw"),
+          fetchImage(scan.annotated_image_url, scan.plant_id, "annotated"),
+        ]);
+        return {
+          imageUrl: raw.url ?? "",
+          imageLocal: raw.local,
+          annotatedImageUrl: annotated.url,
+          annotatedImageLocal: annotated.local,
+        };
       }),
     );
 
@@ -338,6 +357,8 @@ export const SessionService = {
             col: scan.col,
             imageUrl: resolvedImages[i].imageUrl,
             imageLocal: resolvedImages[i].imageLocal,
+            annotatedImageUrl: resolvedImages[i].annotatedImageUrl,
+            annotatedImageLocal: resolvedImages[i].annotatedImageLocal,
             totalFruits: scan.total_fruits ?? 0,
             ripeCount: scan.ripe_count ?? 0,
             turningCount: scan.turning_count ?? 0,

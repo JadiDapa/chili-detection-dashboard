@@ -54,6 +54,7 @@ export interface PiPlantScan {
   col: number;
   scanned_at: string | null;
   image_url: string | null;
+  annotated_image_url: string | null;
   total_fruits: number | null;
   ripe_count: number | null;
   turning_count: number | null;
@@ -116,6 +117,7 @@ export type SSEEvent =
       session_id: string;
       plant_id: number;
       image_url: string;
+      annotated_image_url: string | null;
       detections: PiDetection[];
       total_fruits: number;
     }

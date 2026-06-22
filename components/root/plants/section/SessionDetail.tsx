@@ -12,8 +12,7 @@ import { cn } from "@/lib/utils";
 import { ClassCount } from "./LiveSession";
 import { SessionType } from "@/server/validators/session.validator";
 import { Prisma } from "@/generated/prisma";
-import Image from "next/image";
-import { CrosshairOverlay } from "../CrosshairOverlay";
+import { CaptureImage } from "./CaptureImage";
 
 type CaptureType = Prisma.CapturesGetPayload<Record<string, never>>;
 type FruitClass = "Ripe" | "Unripe" | "Turning" | "Broken";
@@ -82,29 +81,11 @@ function CaptureCard({ capture }: { capture: CaptureType }) {
 
   return (
     <div className="bg-muted flex items-start gap-1 overflow-hidden rounded-lg">
-      <div className="relative h-44 w-56 shrink-0 overflow-hidden rounded-s-md bg-zinc-700">
-        <div className="absolute top-1 left-1 z-10 rounded-full bg-black/50 px-2 py-0.5">
-          <p className="text-[10px] font-medium text-white">
-            Plant #{String(capture.plantIndex ?? "?").padStart(2, "0")}
-          </p>
-        </div>
-        {capture.imageUrl ? (
-          <>
-            <Image
-              src={capture.imageUrl}
-              alt={`Plant ${capture.plantIndex}`}
-              unoptimized
-              className="object-cover object-center"
-              fill
-            />
-            <CrosshairOverlay />
-          </>
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <span className="text-[10px] text-zinc-500">No image</span>
-          </div>
-        )}
-      </div>
+      <CaptureImage
+        plantId={capture.plantIndex ?? "?"}
+        rawUrl={capture.imageUrl || null}
+        annotatedUrl={capture.annotatedImageUrl || null}
+      />
       <div className="flex w-full flex-col gap-1 p-2">
         <div className="flex w-full items-center justify-between border-b pb-1">
           <span className="text-xs text-zinc-500">Total</span>
