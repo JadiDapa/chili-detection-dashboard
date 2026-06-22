@@ -1,9 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { Thermometer, Wind, Sun, Droplets, Sprout, Gauge } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   piApi,
   type SoilSensorData,
@@ -12,11 +21,7 @@ import {
 } from "@/lib/pi";
 import { cn } from "@/lib/utils";
 
-const SENSOR_COLORS = [
-  "from-emerald-400 to-emerald-600",
-  "from-sky-400 to-sky-600",
-  "from-amber-400 to-amber-600",
-] as const;
+const SENSOR_LINE_COLORS = ["#10b981", "#0ea5e9", "#f59e0b"] as const;
 
 const FALLBACK_SENSORS = [
   { id: 1, label: "Sensor 1", moisture_pct: 0 },
@@ -24,34 +29,39 @@ const FALLBACK_SENSORS = [
   { id: 3, label: "Sensor 3", moisture_pct: 0 },
 ];
 
-function getMoistureStatus(value: number) {
-  if (value < 30)
-    return {
-      label: "Dry",
-      color: "text-red-500",
-    };
+// Rolling window of readings kept for the moisture trend chart.
+const MAX_HISTORY_POINTS = 30;
 
-  if (value < 70)
-    return {
-      label: "Optimal",
-      color: "text-emerald-500",
-    };
-
-  return {
-    label: "Wet",
-    color: "text-sky-500",
-  };
-}
+type MoistureHistoryPoint = {
+  time: string;
+  [sensorKey: string]: string | number;
+};
 
 export default function SectionOverviewStats() {
   const [soil, setSoil] = useState<SoilSensorData | null>(null);
   const [env, setEnv] = useState<EnvironmentData | null>(null);
   const [light, setLight] = useState<LightData | null>(null);
+  const [history, setHistory] = useState<MoistureHistoryPoint[]>([]);
 
   useEffect(() => {
     async function fetchAll() {
       try {
-        setSoil(await piApi.getSoilSensors());
+        const soilData = await piApi.getSoilSensors();
+        setSoil(soilData);
+
+        const point: MoistureHistoryPoint = {
+          time: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          }),
+        };
+
+        soilData.sensors.forEach((sensor) => {
+          point[`sensor${sensor.id}`] = sensor.moisture_pct;
+        });
+
+        setHistory((prev) => [...prev, point].slice(-MAX_HISTORY_POINTS));
       } catch {}
 
       try {
@@ -81,6 +91,53 @@ export default function SectionOverviewStats() {
     );
   }, [sensors]);
 
+  const chartConfig = useMemo<ChartConfig>(() => {
+    return sensors.reduce<ChartConfig>((config, sensor, i) => {
+      config[`sensor${sensor.id}`] = {
+        label: sensor.label,
+        color: SENSOR_LINE_COLORS[i % SENSOR_LINE_COLORS.length],
+      };
+      return config;
+    }, {});
+  }, [sensors]);
+
+  // Each bar's fill is the reading normalized against a sensible max for its unit.
+  const environmentMetrics = useMemo(() => {
+    const clampPct = (value: number, max: number) =>
+      Math.max(0, Math.min(100, (value / max) * 100));
+
+    return [
+      {
+        label: "Temperature",
+        icon: Thermometer,
+        iconColor: "text-orange-400",
+        display: env ? `${env.temperature_c}°C` : "—",
+        fillPct: env ? clampPct(env.temperature_c, 50) : 0,
+      },
+      {
+        label: "Humidity",
+        icon: Droplets,
+        iconColor: "text-sky-400",
+        display: env ? `${env.humidity_pct}%` : "—",
+        fillPct: env ? clampPct(env.humidity_pct, 100) : 0,
+      },
+      {
+        label: "Lighting",
+        icon: Sun,
+        iconColor: "text-yellow-400",
+        display: light ? `${light.lux} lux` : "—",
+        fillPct: light ? clampPct(light.lux, 2000) : 0,
+      },
+      {
+        label: "Fan Speed",
+        icon: Wind,
+        iconColor: "text-zinc-400",
+        display: env ? `${env.exhaust_fan_speed_pct}%` : "—",
+        fillPct: env ? clampPct(env.exhaust_fan_speed_pct, 100) : 0,
+      },
+    ];
+  }, [env, light]);
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
       {/* LEFT - SOIL SECTION */}
@@ -106,67 +163,100 @@ export default function SectionOverviewStats() {
               </div>
             </div>
 
-            <div className="flex gap-6 rounded-2xl border border-emerald-500/15 bg-emerald-500/10 px-4 py-2 text-right">
-              <p className="text-[10px] font-semibold tracking-widest text-emerald-600 uppercase">
-                Average
-              </p>
-
+            <div className="gap-6 px-4 text-right">
               <div className="flex items-end justify-end gap-1">
-                <span className="text-2xl font-black tabular-nums">
+                <span className="text-2xl font-semibold tabular-nums">
                   {averageMoisture}
                 </span>
 
                 <span className="text-muted-foreground mb-1 text-xs">%</span>
               </div>
+              <p className="text-xs font-semibold tracking-widest text-emerald-600 uppercase">
+                Average
+              </p>
             </div>
           </div>
 
-          {/* Sensors */}
-          <div className="space-y-4">
-            {sensors.map((sensor, i) => {
-              const status = getMoistureStatus(sensor.moisture_pct);
-
-              return (
-                <div
-                  key={sensor.id}
-                  className="border-border/50 bg-background/60 rounded-2xl border p-4 backdrop-blur"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold">{sensor.label}</p>
-
-                      <p className={cn("text-xs font-medium", status.color)}>
-                        {status.label}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-xl font-black tabular-nums">
-                        {sensor.moisture_pct}
-                      </span>
-
-                      <span className="text-muted-foreground ml-1 text-xs">
-                        %
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-muted relative h-3 overflow-hidden rounded-full">
-                    <div
-                      className={cn(
-                        "h-full rounded-full bg-linear-to-r transition-all duration-700",
-                        SENSOR_COLORS[i % SENSOR_COLORS.length],
-                      )}
-                      style={{
-                        width: `${sensor.moisture_pct}%`,
-                      }}
-                    />
-
-                    <div className="absolute inset-0 bg-[linear-linear(to_right,transparent,rgba(255,255,255,0.18),transparent)]" />
-                  </div>
+          {/* Current readings */}
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            {sensors.map((sensor, i) => (
+              <div
+                key={sensor.id}
+                className="border-border/50 rounded-lg p-3 backdrop-blur"
+              >
+                <div className="flex items-end gap-1">
+                  <span className="text-2xl font-semibold tabular-nums">
+                    {sensor.moisture_pct}
+                  </span>
+                  <span className="text-muted-foreground mb-1 text-xs">%</span>
                 </div>
-              );
-            })}
+                <div className="mb-1 flex items-center gap-1.5">
+                  {/* <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{
+                      backgroundColor:
+                        SENSOR_LINE_COLORS[i % SENSOR_LINE_COLORS.length],
+                    }}
+                  /> */}
+                  <p className="text-muted-foreground truncate text-xs font-medium">
+                    {sensor.label}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Moisture trend */}
+          <div className="border-border/50 bg-background/60 rounded-lg border p-4 backdrop-blur">
+            <p className="text-muted-foreground mb-3 text-xs font-medium">
+              Moisture trend (live)
+            </p>
+
+            <ChartContainer config={chartConfig} className="h-50 w-full">
+              <LineChart
+                accessibilityLayer
+                data={history}
+                margin={{ left: 4, right: 12, top: 4 }}
+              >
+                <CartesianGrid vertical={false} />
+
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={24}
+                />
+
+                <YAxis
+                  domain={[0, 100]}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={32}
+                  tickFormatter={(value) => `${value}%`}
+                />
+
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent />}
+                />
+
+                {sensors.map((sensor) => (
+                  <Line
+                    key={sensor.id}
+                    dataKey={`sensor${sensor.id}`}
+                    type="monotone"
+                    stroke={`var(--color-sensor${sensor.id})`}
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                ))}
+
+                <ChartLegend content={<ChartLegendContent />} />
+              </LineChart>
+            </ChartContainer>
           </div>
         </CardContent>
       </Card>
@@ -176,92 +266,85 @@ export default function SectionOverviewStats() {
         {/* ENVIRONMENT */}
         <Card className="border-border/60 from-background to-muted/20 border bg-linear-to-br shadow-sm">
           <CardContent className="p-5">
-            <div className="mb-5 flex items-center gap-2">
+            <div className="mb-7 flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10">
                 <Gauge className="h-4.5 w-4.5 text-orange-500" />
               </div>
 
               <div>
                 <p className="text-muted-foreground text-xs font-semibold tracking-[0.18em] uppercase">
-                  Greenhouse
+                  Environment
                 </p>
 
                 <h3 className="text-lg font-semibold tracking-tight">
-                  Environment
+                  Monitoring
                 </h3>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="border-border/50 bg-background/70 rounded-2xl border p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Thermometer className="h-4 w-4 text-orange-400" />
-                  <span className="text-muted-foreground text-xs font-medium">
-                    Temperature
-                  </span>
-                </div>
-
+            {/* Hero stats */}
+            <div className="mb-5 grid grid-cols-3 gap-3">
+              <div className="border-border/50 rounded-lg p-3 backdrop-blur">
                 <div className="flex items-end gap-1">
-                  <span className="text-2xl font-black tabular-nums">
+                  <span className="text-2xl font-semibold tabular-nums">
                     {env?.temperature_c ?? "—"}
                   </span>
-
                   <span className="text-muted-foreground mb-1 text-xs">°C</span>
                 </div>
+                <p className="text-muted-foreground mt-0.5 text-xs">
+                  Temperature
+                </p>
               </div>
 
-              <div className="border-border/50 bg-background/70 rounded-2xl border p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Droplets className="h-4 w-4 text-sky-400" />
-                  <span className="text-muted-foreground text-xs font-medium">
-                    Humidity
-                  </span>
-                </div>
-
+              <div className="border-border/50 rounded-lg p-3 backdrop-blur">
                 <div className="flex items-end gap-1">
-                  <span className="text-2xl font-black tabular-nums">
+                  <span className="text-2xl font-semibold tabular-nums">
                     {env?.humidity_pct ?? "—"}
                   </span>
-
                   <span className="text-muted-foreground mb-1 text-xs">%</span>
                 </div>
+                <p className="text-muted-foreground mt-0.5 text-xs">Humidity</p>
               </div>
 
-              <div className="border-border/50 bg-background/70 rounded-2xl border p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Sun className="h-4 w-4 text-yellow-400" />
-                  <span className="text-muted-foreground text-xs font-medium">
-                    Lighting
-                  </span>
-                </div>
-
+              <div className="border-border/50 rounded-lg p-3 backdrop-blur">
                 <div className="flex items-end gap-1">
-                  <span className="text-2xl font-black tabular-nums">
+                  <span className="text-2xl font-semibold tabular-nums">
                     {light?.lux ?? "—"}
                   </span>
-
                   <span className="text-muted-foreground mb-1 text-xs">
                     lux
                   </span>
                 </div>
+                <p className="text-muted-foreground mt-0.5 text-xs">Lighting</p>
               </div>
+            </div>
 
-              <div className="border-border/50 bg-background/70 rounded-2xl border p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <Wind className="h-4 w-4 text-zinc-400" />
-                  <span className="text-muted-foreground text-xs font-medium">
-                    Fan Speed
-                  </span>
+            {/* Metric bars */}
+            <div className="border-border/50 bg-background/60 space-y-7.5 rounded-lg border p-4 backdrop-blur">
+              {environmentMetrics.map((metric) => (
+                <div key={metric.label}>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <metric.icon
+                        className={cn("h-4 w-4", metric.iconColor)}
+                      />
+                      <span className="text-sm font-medium">
+                        {metric.label}
+                      </span>
+                    </div>
+                    <span className="text-muted-foreground text-sm font-medium tabular-nums">
+                      {metric.display}
+                    </span>
+                  </div>
+
+                  <div className="bg-muted h-2 overflow-hidden rounded-full">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-700"
+                      style={{ width: `${metric.fillPct}%` }}
+                    />
+                  </div>
                 </div>
-
-                <div className="flex items-end gap-1">
-                  <span className="text-2xl font-black tabular-nums">
-                    {env?.exhaust_fan_speed_pct ?? "—"}
-                  </span>
-
-                  <span className="text-muted-foreground mb-1 text-xs">%</span>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
