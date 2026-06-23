@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { WifiOff, RefreshCw, Camera } from "lucide-react";
 import { CrosshairOverlay } from "./CrosshairOverlay";
+import { RoiOverlay } from "./RoiOverlay";
 
 type StreamState = "connecting" | "live" | "error" | "offline";
 
@@ -11,12 +12,17 @@ type Props = {
   streamUrl: string;
   /** Show a live indicator dot. Default true. */
   showLiveIndicator?: boolean;
+  /** Centered YOLO counting region as a % of the frame. Omit / 100 = no box. */
+  roiWPct?: number;
+  roiHPct?: number;
 };
 
 export function PlantsCam({
   label,
   streamUrl,
   showLiveIndicator = true,
+  roiWPct = 100,
+  roiHPct = 100,
 }: Props) {
   const [state, setState] = useState<StreamState>("connecting");
   const [retryCount, setRetryCount] = useState(0);
@@ -107,6 +113,9 @@ export function PlantsCam({
 
       {/* ── Center crosshair (over the live feed) ── */}
       {state === "live" && <CrosshairOverlay />}
+
+      {/* ── YOLO counting region (over the live feed) ── */}
+      {state === "live" && <RoiOverlay wPct={roiWPct} hPct={roiHPct} />}
 
       {/* ── Live indicator (top-left) ── */}
       {showLiveIndicator && state === "live" && (

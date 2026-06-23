@@ -1,6 +1,7 @@
 import PageHeader from "@/components/root/PageHeader";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
 import { piApi } from "@/lib/pi";
+import { ScanConfigService } from "@/server/services/scan-config.service";
 import ScanningResultChart from "@/components/root/plants/section/ScanningResultChart";
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
 import GantryControl from "@/components/root/plants/section/GantryControl";
@@ -16,6 +17,7 @@ export default async function PlantSections({
   params: { section: string };
 }) {
   const { section } = await params;
+  const defaultConfig = await ScanConfigService.getDefault();
 
   return (
     <main className="flex min-h-screen w-full flex-col gap-3 overflow-hidden py-2 lg:flex-row lg:pe-3">
@@ -36,6 +38,8 @@ export default async function PlantSections({
             <PlantsCam
               label={`Planter Bed ${section}`}
               streamUrl={piApi.streamUrl()}
+              roiWPct={defaultConfig?.roiWPct ?? 100}
+              roiHPct={defaultConfig?.roiHPct ?? 100}
             />
           </div>
 

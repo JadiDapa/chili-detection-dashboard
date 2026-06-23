@@ -19,6 +19,8 @@ export type ScanConfigData = {
   gapYMm?: number;
   startXMm?: number;
   startYMm?: number;
+  roiWPct?: number;
+  roiHPct?: number;
   captureOffsets: CaptureOffsetData[];
 };
 
@@ -49,6 +51,8 @@ export const ScanConfigService = {
         gapYMm: data.gapYMm ?? 1000.0,
         startXMm: data.startXMm ?? 0.0,
         startYMm: data.startYMm ?? 0.0,
+        roiWPct: data.roiWPct ?? 100.0,
+        roiHPct: data.roiHPct ?? 100.0,
         captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
       },
     });
@@ -67,6 +71,8 @@ export const ScanConfigService = {
         ...(data.gapYMm !== undefined && { gapYMm: data.gapYMm }),
         ...(data.startXMm !== undefined && { startXMm: data.startXMm }),
         ...(data.startYMm !== undefined && { startYMm: data.startYMm }),
+        ...(data.roiWPct !== undefined && { roiWPct: data.roiWPct }),
+        ...(data.roiHPct !== undefined && { roiHPct: data.roiHPct }),
         ...(data.captureOffsets !== undefined && {
           captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
         }),
@@ -94,6 +100,8 @@ export const ScanConfigService = {
     gapYMm: number;
     startXMm: number;
     startYMm: number;
+    roiWPct: number;
+    roiHPct: number;
     captureOffsets: Prisma.JsonValue;
   }): Prisma.InputJsonValue {
     return {
@@ -103,6 +111,8 @@ export const ScanConfigService = {
       gap_y_mm: config.gapYMm,
       start_x_mm: config.startXMm,
       start_y_mm: config.startYMm,
+      roi_w_pct: config.roiWPct,
+      roi_h_pct: config.roiHPct,
       capture_offsets: config.captureOffsets,
     } as Prisma.InputJsonValue;
   },

@@ -15,6 +15,12 @@ model ScanConfig {
     // Array of CaptureOffset: [{z_mm, x_offset_mm, y_offset_mm, servo_pan, servo_tilt}]
     captureOffsets Json
 
+    // YOLO counting region of interest — a centered box sized as a percentage of
+    // the camera frame. Fruit detected outside it is ignored so neighboring plants
+    // don't inflate counts. 100×100 = whole frame = no filtering.
+    roiWPct Float @default(100.0)
+    roiHPct Float @default(100.0)
+
     sessions       Session[]
     scheduledTasks ScheduledTask[]
 

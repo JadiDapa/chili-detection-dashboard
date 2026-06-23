@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { PlantsCam } from "@/components/root/plants/PlantsCam";
+import { piApi } from "@/lib/pi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +39,8 @@ export interface ScanConfigSummary {
   gapYMm: number;
   startXMm: number;
   startYMm: number;
+  roiWPct: number;
+  roiHPct: number;
   captureOffsets: CaptureOffsetData[];
 }
 
@@ -78,6 +82,8 @@ type CreateForm = {
   gapYMm: string;
   startXMm: string;
   startYMm: string;
+  roiWPct: string;
+  roiHPct: string;
   captureOffsets: OffsetRow[];
   zMaxMm: string;
   zWaterMm: string;
@@ -95,6 +101,8 @@ const EMPTY_FORM: CreateForm = {
   gapYMm: "1000",
   startXMm: "0",
   startYMm: "0",
+  roiWPct: "100",
+  roiHPct: "100",
   captureOffsets: [],
   zMaxMm: "0",
   zWaterMm: "50",
@@ -118,6 +126,12 @@ function configToForm(
     gapYMm: String(config.gapYMm),
     startXMm: String(config.startXMm),
     startYMm: String(config.startYMm),
+    roiWPct: isWatering
+      ? "100"
+      : String((config as ScanConfigSummary).roiWPct ?? 100),
+    roiHPct: isWatering
+      ? "100"
+      : String((config as ScanConfigSummary).roiHPct ?? 100),
     captureOffsets: isWatering
       ? []
       : ((config as ScanConfigSummary).captureOffsets ?? []).map((o) => ({
@@ -276,6 +290,8 @@ export default function StartSessionDialog({
         sessionType === "SCAN"
           ? {
               ...shared,
+              roiWPct: parseFloat(form.roiWPct) || 100,
+              roiHPct: parseFloat(form.roiHPct) || 100,
               captureOffsets: form.captureOffsets.map(
                 ({ _key: _, ...rest }) => rest,
               ),
@@ -341,6 +357,8 @@ export default function StartSessionDialog({
         sessionType === "SCAN"
           ? {
               ...shared,
+              roiWPct: parseFloat(form.roiWPct) || 100,
+              roiHPct: parseFloat(form.roiHPct) || 100,
               captureOffsets: form.captureOffsets.map(
                 ({ _key: _, ...rest }) => rest,
               ),
@@ -586,10 +604,16 @@ function SelectStep({
                         />
                       </>
                     ) : (
-                      <Detail
-                        label="Capture offsets"
-                        value={`${((config as ScanConfigSummary).captureOffsets as unknown[])?.length ?? 0} shot(s)`}
-                      />
+                      <>
+                        <Detail
+                          label="Capture offsets"
+                          value={`${((config as ScanConfigSummary).captureOffsets as unknown[])?.length ?? 0} shot(s)`}
+                        />
+                        <Detail
+                          label="Counting region"
+                          value={`${(config as ScanConfigSummary).roiWPct ?? 100}% × ${(config as ScanConfigSummary).roiHPct ?? 100}%`}
+                        />
+                      </>
                     )}
                   </div>
                 )}
@@ -723,6 +747,45 @@ function CreateStep({
               />
             </div>
           </section>
+
+          {/* SCAN: counting region (ROI) */}
+          {sessionType === "SCAN" && (
+            <section>
+              <SectionLabel>
+                Counting Region{" "}
+                <span className="font-normal normal-case text-zinc-500">
+                  (% of frame, centered)
+                </span>
+              </SectionLabel>
+              {/* Live preview — tune the box against the actual feed */}
+              <div className="relative mb-3 aspect-video w-full overflow-hidden rounded-lg bg-zinc-900">
+                <PlantsCam
+                  label="ROI preview"
+                  streamUrl={piApi.streamUrl()}
+                  showLiveIndicator={false}
+                  roiWPct={parseFloat(form.roiWPct) || 100}
+                  roiHPct={parseFloat(form.roiHPct) || 100}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <NumField
+                  label="ROI Width %"
+                  value={form.roiWPct}
+                  onChange={(v) => onField("roiWPct", v)}
+                />
+                <NumField
+                  label="ROI Height %"
+                  value={form.roiHPct}
+                  onChange={(v) => onField("roiHPct", v)}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] italic text-zinc-500">
+                Fruit detected outside this centered box is ignored, so
+                neighboring plants don&apos;t inflate the count. 100×100 = whole
+                frame.
+              </p>
+            </section>
+          )}
 
           {/* SCAN: capture offsets */}
           {sessionType === "SCAN" && (
