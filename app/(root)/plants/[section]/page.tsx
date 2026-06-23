@@ -54,6 +54,7 @@ export default async function PlantSections({
           </div>
         </div>
       </div>
+
       <SessionSidebar />
     </main>
   );

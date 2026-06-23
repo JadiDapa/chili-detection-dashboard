@@ -13,6 +13,7 @@ import { ClassCount } from "./LiveSession";
 import { SessionType } from "@/server/validators/session.validator";
 import { Prisma } from "@/generated/prisma";
 import { CaptureImage } from "./CaptureImage";
+import { CaptureDetailDialog } from "./CaptureDetailDialog";
 
 type CaptureType = Prisma.CapturesGetPayload<Record<string, never>>;
 type FruitClass = "Ripe" | "Unripe" | "Turning" | "Broken";
@@ -75,61 +76,69 @@ function ClassBarList({
   );
 }
 
-function CaptureCard({ capture }: { capture: CaptureType }) {
+function CaptureCard({
+  capture,
+  isReady,
+}: {
+  capture: CaptureType;
+  isReady: boolean;
+}) {
   const classes = captureToClassCount(capture);
   const total = capture.totalFruits;
 
   return (
-    <div className="bg-muted flex items-start gap-1 overflow-hidden rounded-lg">
-      <CaptureImage
-        plantId={capture.plantIndex ?? "?"}
-        rawUrl={capture.imageUrl || null}
-        annotatedUrl={capture.annotatedImageUrl || null}
-      />
-      <div className="flex w-full flex-col gap-1 p-2">
-        <div className="flex w-full items-center justify-between border-b pb-1">
-          <span className="text-xs text-zinc-500">Total</span>
-          <span className="text-primary text-sm font-bold">{total}</span>
-        </div>
-        {(Object.entries(classes) as [FruitClass, number][]).map(
-          ([label, count]) => (
-            <div
-              key={label}
-              className="flex w-full items-center justify-between"
-            >
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    CLASS_DOT_COLOR[label],
-                  )}
-                />
-                <span className="text-xs text-zinc-400">{label}</span>
+    <CaptureDetailDialog capture={capture} isReady={isReady}>
+      <div className="bg-muted hover:bg-muted/70 flex cursor-pointer items-start gap-1 overflow-hidden rounded-lg text-left transition-colors">
+        <CaptureImage
+          plantId={capture.plantIndex ?? "?"}
+          rawUrl={capture.imageUrl || null}
+          annotatedUrl={capture.annotatedImageUrl || null}
+        />
+        <div className="flex w-full flex-col gap-1 p-2">
+          <div className="flex w-full items-center justify-between border-b pb-1">
+            <span className="text-xs text-zinc-500">Total</span>
+            <span className="text-primary text-sm font-bold">{total}</span>
+          </div>
+          {(Object.entries(classes) as [FruitClass, number][]).map(
+            ([label, count]) => (
+              <div
+                key={label}
+                className="flex w-full items-center justify-between"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      CLASS_DOT_COLOR[label],
+                    )}
+                  />
+                  <span className="text-xs text-zinc-400">{label}</span>
+                </div>
+                <span className="text-foreground text-xs font-semibold">
+                  {count}
+                </span>
               </div>
-              <span className="text-foreground text-xs font-semibold">
-                {count}
+            ),
+          )}
+          {capture.heightCm != null && (
+            <div className="mt-1 flex items-center justify-between border-t pt-1">
+              <span className="text-[10px] text-zinc-500">Height</span>
+              <span className="text-[10px] text-zinc-400">
+                {capture.heightCm} cm
               </span>
             </div>
-          ),
-        )}
-        {capture.heightCm != null && (
-          <div className="mt-1 flex items-center justify-between border-t pt-1">
-            <span className="text-[10px] text-zinc-500">Height</span>
-            <span className="text-[10px] text-zinc-400">
-              {capture.heightCm} cm
-            </span>
-          </div>
-        )}
-        {capture.moisturePct != null && (
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-zinc-500">Moisture</span>
-            <span className="text-[10px] text-zinc-400">
-              {capture.moisturePct}%
-            </span>
-          </div>
-        )}
+          )}
+          {capture.moisturePct != null && (
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-500">Moisture</span>
+              <span className="text-[10px] text-zinc-400">
+                {capture.moisturePct}%
+              </span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </CaptureDetailDialog>
   );
 }
 
@@ -278,7 +287,14 @@ export default function SessionDetail({
             </p>
           )}
           {session.captures.map((capture) => (
-            <CaptureCard key={capture.id} capture={capture} />
+            <CaptureCard
+              key={capture.id}
+              capture={capture}
+              isReady={
+                capture.plantIndex != null &&
+                harvestReadyIds.includes(capture.plantIndex)
+              }
+            />
           ))}
         </CollapsibleContent>
       </Collapsible>

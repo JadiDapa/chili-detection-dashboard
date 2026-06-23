@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { type SessionType } from "@/server/validators/session.validator";
 import { CaptureImage } from "./CaptureImage";
+import { CaptureDetailDialog } from "./CaptureDetailDialog";
 
 type DayRange = "7" | "14" | "30";
 
@@ -209,40 +210,42 @@ function PlantBox({
 
   return (
     <HoverCard openDelay={80} closeDelay={40}>
-      <HoverCardTrigger asChild>
-        <div
-          className={cn(
-            "relative flex aspect-square cursor-default flex-col items-center justify-center rounded-lg border pb-3 transition-colors",
-            isReady
-              ? "border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/15"
-              : "border-border/60 bg-muted hover:bg-muted/70",
-          )}
-        >
-          <span className="absolute top-1 left-1.5 text-[8px] font-medium text-zinc-500">
-            {String(plantNo).padStart(2, "0")}
-          </span>
-
-          <span
+      <CaptureDetailDialog capture={capture} isReady={isReady}>
+        <HoverCardTrigger asChild>
+          <div
             className={cn(
-              "text-lg leading-none font-bold tabular-nums",
-              isReady ? "text-emerald-600" : "text-foreground",
+              "relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-lg border pb-3 transition-colors",
+              isReady
+                ? "border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/15"
+                : "border-border/60 bg-muted hover:bg-muted/70",
             )}
           >
-            {capture.ripeCount}
-          </span>
-          <span className="mt-0.5 text-[7px] tracking-wide text-zinc-400 uppercase">
-            ripe
-          </span>
+            <span className="absolute top-1 left-1.5 text-[8px] font-medium text-zinc-500">
+              {String(plantNo).padStart(2, "0")}
+            </span>
 
-          {/* Smaller box pinned to the bottom: total fruits scanned */}
-          <div
-            className="bg-background/90 absolute bottom-1 flex items-center rounded px-1.5 py-px text-[9px] font-semibold tabular-nums text-zinc-500 shadow-sm"
-            title="Total fruits scanned"
-          >
-            {capture.totalFruits}
+            <span
+              className={cn(
+                "text-lg leading-none font-bold tabular-nums",
+                isReady ? "text-emerald-600" : "text-foreground",
+              )}
+            >
+              {capture.ripeCount}
+            </span>
+            <span className="mt-0.5 text-[7px] tracking-wide text-zinc-400 uppercase">
+              ripe
+            </span>
+
+            {/* Smaller box pinned to the bottom: total fruits scanned */}
+            <div
+              className="bg-background/90 absolute bottom-1 flex items-center rounded px-1.5 py-px text-[9px] font-semibold text-zinc-500 tabular-nums shadow-sm"
+              title="Total fruits scanned"
+            >
+              {capture.totalFruits}
+            </div>
           </div>
-        </div>
-      </HoverCardTrigger>
+        </HoverCardTrigger>
+      </CaptureDetailDialog>
       <HoverCardContent align="center" side="top" className="w-90 p-2">
         <CaptureHoverCard capture={capture} />
       </HoverCardContent>
