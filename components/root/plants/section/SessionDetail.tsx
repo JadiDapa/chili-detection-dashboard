@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronUp, Leaf, Ruler } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Leaf,
+  Ruler,
+  Video,
+} from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -157,6 +164,70 @@ export default function SessionDetail({
   const harvestReadyIds: number[] = session.harvestReadyIds
     ? (JSON.parse(session.harvestReadyIds) as number[])
     : [];
+
+  // ── Data Collection sessions: video-only detail view ──
+  if (session.sessionType === "DATA_COLLECTION") {
+    return (
+      <div className="flex flex-col gap-0 pt-4">
+        <button
+          onClick={onBack}
+          className="hover:text-foreground flex items-center gap-2 text-[12px] text-zinc-400 transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Back to sessions
+        </button>
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="text-foreground text-2xl font-semibold">
+              Session #{session.id}
+            </h2>
+            <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-500">
+              Data Collection
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500">
+            {formatTime(session.startedAt)} — {formatTime(session.completedAt)}
+          </p>
+        </div>
+
+        <div className="my-3 border-t" />
+
+        <p className="mb-2.5 text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+          Recorded Video
+        </p>
+
+        {session.videoUrl ? (
+          <>
+            <video
+              controls
+              src={session.videoUrl}
+              className="w-full rounded-xl bg-black"
+            />
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[11px] text-zinc-500">
+                {session.videoDurationSec != null
+                  ? `${session.videoDurationSec.toFixed(1)} s`
+                  : ""}
+              </span>
+              <a
+                href={session.videoUrl}
+                download
+                className="text-primary inline-flex items-center gap-1.5 text-[11px] hover:underline"
+              >
+                <Video size={12} />
+                Download video
+              </a>
+            </div>
+          </>
+        ) : (
+          <p className="py-6 text-center text-xs text-zinc-500">
+            No video recorded for this session.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-0 pt-4">

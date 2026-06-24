@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { SessionService, SessionSummaryInput } from "@/server/services/session.service";
+import {
+  SessionService,
+  SessionSummaryInput,
+  DatasetSessionSummaryInput,
+} from "@/server/services/session.service";
 import { WateringService, WateringSessionSummaryInput } from "@/server/services/watering.service";
 
 export async function POST(
@@ -17,6 +21,14 @@ export async function POST(
 
   if (session.sessionType === "WATERING") {
     await WateringService.completeWateringSession(Number(id), summary as WateringSessionSummaryInput);
+    return NextResponse.json({ ok: true, sessionId: Number(id) });
+  }
+
+  if (session.sessionType === "DATA_COLLECTION") {
+    await SessionService.completeDatasetSession(
+      Number(id),
+      summary as DatasetSessionSummaryInput,
+    );
     return NextResponse.json({ ok: true, sessionId: Number(id) });
   }
 

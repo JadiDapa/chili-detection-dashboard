@@ -7,8 +7,9 @@ export async function createSessionAction(
   bedId: number,
   notes?: string | null,
   scanConfigId?: number | null,
-  sessionType?: "SCAN" | "WATERING",
+  sessionType?: "SCAN" | "WATERING" | "DATA_COLLECTION",
   wateringConfigId?: number | null,
+  datasetConfigId?: number | null,
 ) {
   const session = await SessionService.create(
     bedId,
@@ -16,6 +17,7 @@ export async function createSessionAction(
     scanConfigId,
     sessionType,
     wateringConfigId,
+    datasetConfigId,
   );
   revalidatePath("/plants");
   revalidatePath("/sessions");

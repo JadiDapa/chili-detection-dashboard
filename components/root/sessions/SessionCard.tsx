@@ -15,6 +15,7 @@ import {
   Scan,
   Sprout,
   Timer,
+  Video,
   Waves,
 } from "lucide-react";
 
@@ -40,6 +41,7 @@ function sessionDuration(start?: Date | null, end?: Date | null): string | null 
 
 export default function SessionCard({ session }: { session: SessionType }) {
   const isWatering = session.sessionType === "WATERING";
+  const isDataset = session.sessionType === "DATA_COLLECTION";
   const status = (session.status ?? "PENDING") as keyof typeof STATUS_CFG;
   const cfg = STATUS_CFG[status] ?? STATUS_CFG.PENDING;
   const duration = sessionDuration(session.startedAt, session.completedAt);
@@ -52,14 +54,16 @@ export default function SessionCard({ session }: { session: SessionType }) {
           "hover:shadow-lg hover:-translate-y-0.5",
           isWatering
             ? "border-sky-200/60 dark:border-sky-900/60"
-            : "border-emerald-200/60 dark:border-emerald-900/60",
+            : isDataset
+              ? "border-violet-200/60 dark:border-violet-900/60"
+              : "border-emerald-200/60 dark:border-emerald-900/60",
         )}
       >
         {/* Colored top stripe */}
         <div
           className={cn(
             "h-1 w-full",
-            isWatering ? "bg-sky-500" : "bg-emerald-500",
+            isWatering ? "bg-sky-500" : isDataset ? "bg-violet-500" : "bg-emerald-500",
           )}
         />
 
@@ -73,11 +77,15 @@ export default function SessionCard({ session }: { session: SessionType }) {
                   "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
                   isWatering
                     ? "bg-sky-500/10 text-sky-500"
-                    : "bg-emerald-500/10 text-emerald-500",
+                    : isDataset
+                      ? "bg-violet-500/10 text-violet-500"
+                      : "bg-emerald-500/10 text-emerald-500",
                 )}
               >
                 {isWatering ? (
                   <Waves className="h-4 w-4" />
+                ) : isDataset ? (
+                  <Video className="h-4 w-4" />
                 ) : (
                   <Scan className="h-4 w-4" />
                 )}
@@ -93,10 +101,12 @@ export default function SessionCard({ session }: { session: SessionType }) {
                       "rounded px-1.5 py-0.5 text-[10px] font-semibold",
                       isWatering
                         ? "bg-sky-500/10 text-sky-600 dark:text-sky-400"
-                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                        : isDataset
+                          ? "bg-violet-500/10 text-violet-600 dark:text-violet-400"
+                          : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                     )}
                   >
-                    {isWatering ? "Watering" : "Scan"}
+                    {isWatering ? "Watering" : isDataset ? "Data Collection" : "Scan"}
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -132,6 +142,8 @@ export default function SessionCard({ session }: { session: SessionType }) {
           <div className="mt-3">
             {isWatering ? (
               <WateringStats session={session} />
+            ) : isDataset ? (
+              <DatasetStats session={session} />
             ) : (
               <ScanStats session={session} />
             )}
@@ -146,10 +158,16 @@ export default function SessionCard({ session }: { session: SessionType }) {
                   {duration}
                 </span>
               )}
-              {session.totalPlants != null && !isWatering && (
+              {session.totalPlants != null && !isWatering && !isDataset && (
                 <span className="flex items-center gap-1">
                   <Leaf className="h-3 w-3" />
                   {session.totalPlants} plants
+                </span>
+              )}
+              {isDataset && session.videoDurationSec != null && (
+                <span className="flex items-center gap-1">
+                  <Video className="h-3 w-3" />
+                  {session.videoDurationSec.toFixed(0)}s video
                 </span>
               )}
               {session.stopsWatered != null && isWatering && (
@@ -165,7 +183,9 @@ export default function SessionCard({ session }: { session: SessionType }) {
                 "flex items-center gap-1 text-[11px] font-medium transition-colors group-hover:gap-1.5",
                 isWatering
                   ? "text-sky-600 dark:text-sky-400"
-                  : "text-emerald-600 dark:text-emerald-400",
+                  : isDataset
+                    ? "text-violet-600 dark:text-violet-400"
+                    : "text-emerald-600 dark:text-emerald-400",
               )}
             >
               Details <ArrowRight className="h-3 w-3" />
@@ -256,6 +276,27 @@ function ScanStats({ session }: { session: SessionType }) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Dataset stats ────────────────────────────────────────────────────────────
+
+function DatasetStats({ session }: { session: SessionType }) {
+  if (!session.videoUrl) {
+    return (
+      <p className="text-[11px] italic text-muted-foreground">No video yet</p>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg bg-violet-500/8 px-2.5 py-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">
+      <Video className="h-3.5 w-3.5 shrink-0" />
+      Video recorded
+      {session.videoDurationSec != null && (
+        <span className="text-muted-foreground">
+          · {session.videoDurationSec.toFixed(0)}s
+        </span>
+      )}
     </div>
   );
 }

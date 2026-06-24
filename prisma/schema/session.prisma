@@ -9,6 +9,7 @@ enum SessionStatus {
 enum SessionType {
     SCAN
     WATERING
+    DATA_COLLECTION
 }
 
 model Session {
@@ -54,6 +55,13 @@ model Session {
     wateringConfigId       Int?
     wateringConfig         WateringConfig? @relation(fields: [wateringConfigId], references: [id])
     wateringConfigSnapshot Json?
+
+    // DATA_COLLECTION-only — recorded sweep video + the config used
+    videoUrl              String? // dashboard-hosted /api/uploads/<name>.mp4
+    videoDurationSec      Float?
+    datasetConfigId       Int?
+    datasetConfig         DatasetConfig? @relation(fields: [datasetConfigId], references: [id])
+    datasetConfigSnapshot Json?
 
     // Relations
     captures      Captures[]

@@ -62,10 +62,45 @@ export interface WateringConfigSummary {
   waterSpeedMmSec: number;
 }
 
+export interface DatasetConfigSummary {
+  id: number;
+  name: string;
+  description: string | null;
+  isDefault: boolean;
+  cols: number;
+  rows: number;
+  gapXMm: number;
+  gapYMm: number;
+  startXMm: number;
+  startYMm: number;
+  zMm: number;
+  speedMmSec: number;
+}
+
+type SessionTypeOpt = "SCAN" | "WATERING" | "DATA_COLLECTION";
+type AnyConfigSummary =
+  | ScanConfigSummary
+  | WateringConfigSummary
+  | DatasetConfigSummary;
+
+// Discriminate a config summary by a field unique to its kind.
+function isWateringConfig(c: AnyConfigSummary): c is WateringConfigSummary {
+  return "zMaxMm" in c;
+}
+function isDatasetConfig(c: AnyConfigSummary): c is DatasetConfigSummary {
+  return "speedMmSec" in c;
+}
+
+const TYPE_LABEL: Record<SessionTypeOpt, string> = {
+  SCAN: "Ripeness Scan",
+  WATERING: "Watering",
+  DATA_COLLECTION: "Data Collection",
+};
+
 interface StartSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (sessionType: "SCAN" | "WATERING", configId: number | null) => void;
+  onConfirm: (sessionType: SessionTypeOpt, configId: number | null) => void;
   isPending: boolean;
 }
 
@@ -90,6 +125,9 @@ type CreateForm = {
   tofSamples: string;
   sweepSpeedMmSec: string;
   waterSpeedMmSec: string;
+  // DATA_COLLECTION
+  zMm: string;
+  speedMmSec: string;
 };
 
 const EMPTY_FORM: CreateForm = {
@@ -109,14 +147,16 @@ const EMPTY_FORM: CreateForm = {
   tofSamples: "5",
   sweepSpeedMmSec: "150",
   waterSpeedMmSec: "100",
+  zMm: "50",
+  speedMmSec: "100",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function configToForm(
-  config: ScanConfigSummary | WateringConfigSummary,
-): CreateForm {
-  const isWatering = "zMaxMm" in config;
+function configToForm(config: AnyConfigSummary): CreateForm {
+  const watering = isWateringConfig(config);
+  const dataset = isDatasetConfig(config);
+  const scan = !watering && !dataset;
   return {
     name: config.name,
     description: config.description ?? "",
@@ -126,31 +166,68 @@ function configToForm(
     gapYMm: String(config.gapYMm),
     startXMm: String(config.startXMm),
     startYMm: String(config.startYMm),
-    roiWPct: isWatering
-      ? "100"
-      : String((config as ScanConfigSummary).roiWPct ?? 100),
-    roiHPct: isWatering
-      ? "100"
-      : String((config as ScanConfigSummary).roiHPct ?? 100),
-    captureOffsets: isWatering
-      ? []
-      : ((config as ScanConfigSummary).captureOffsets ?? []).map((o) => ({
+    roiWPct: scan ? String((config as ScanConfigSummary).roiWPct ?? 100) : "100",
+    roiHPct: scan ? String((config as ScanConfigSummary).roiHPct ?? 100) : "100",
+    captureOffsets: scan
+      ? ((config as ScanConfigSummary).captureOffsets ?? []).map((o) => ({
           ...o,
           _key: crypto.randomUUID(),
-        })),
-    zMaxMm: isWatering ? String((config as WateringConfigSummary).zMaxMm) : "0",
-    zWaterMm: isWatering
+        }))
+      : [],
+    zMaxMm: watering ? String((config as WateringConfigSummary).zMaxMm) : "0",
+    zWaterMm: watering
       ? String((config as WateringConfigSummary).zWaterMm)
       : "50",
-    tofSamples: isWatering
+    tofSamples: watering
       ? String((config as WateringConfigSummary).tofSamples)
       : "5",
-    sweepSpeedMmSec: isWatering
+    sweepSpeedMmSec: watering
       ? String((config as WateringConfigSummary).sweepSpeedMmSec)
       : "150",
-    waterSpeedMmSec: isWatering
+    waterSpeedMmSec: watering
       ? String((config as WateringConfigSummary).waterSpeedMmSec)
       : "100",
+    zMm: dataset ? String((config as DatasetConfigSummary).zMm) : "50",
+    speedMmSec: dataset
+      ? String((config as DatasetConfigSummary).speedMmSec)
+      : "100",
+  };
+}
+
+function configApiBase(type: SessionTypeOpt): string {
+  if (type === "WATERING") return "/api/watering-configs";
+  if (type === "DATA_COLLECTION") return "/api/dataset-configs";
+  return "/api/scan-configs";
+}
+
+// Build the per-type request body from the shared grid fields + the form.
+function buildConfigBody(
+  type: SessionTypeOpt,
+  form: CreateForm,
+  shared: Record<string, unknown>,
+): Record<string, unknown> {
+  if (type === "WATERING") {
+    return {
+      ...shared,
+      zMaxMm: parseFloat(form.zMaxMm) || 0,
+      zWaterMm: parseFloat(form.zWaterMm) || 50,
+      tofSamples: parseInt(form.tofSamples) || 5,
+      sweepSpeedMmSec: parseFloat(form.sweepSpeedMmSec) || 150,
+      waterSpeedMmSec: parseFloat(form.waterSpeedMmSec) || 100,
+    };
+  }
+  if (type === "DATA_COLLECTION") {
+    return {
+      ...shared,
+      zMm: parseFloat(form.zMm) || 50,
+      speedMmSec: parseFloat(form.speedMmSec) || 100,
+    };
+  }
+  return {
+    ...shared,
+    roiWPct: parseFloat(form.roiWPct) || 100,
+    roiHPct: parseFloat(form.roiHPct) || 100,
+    captureOffsets: form.captureOffsets.map(({ _key: _, ...rest }) => rest),
   };
 }
 
@@ -164,9 +241,10 @@ export default function StartSessionDialog({
 }: StartSessionDialogProps) {
   const [step, setStep] = useState<"select" | "create" | "edit">("select");
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [sessionType, setSessionType] = useState<"SCAN" | "WATERING">("SCAN");
+  const [sessionType, setSessionType] = useState<SessionTypeOpt>("SCAN");
   const [scanConfigs, setScanConfigs] = useState<ScanConfigSummary[]>([]);
   const [wateringConfigs, setWateringConfigs] = useState<WateringConfigSummary[]>([]);
+  const [datasetConfigs, setDatasetConfigs] = useState<DatasetConfigSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -208,13 +286,30 @@ export default function StartSessionDialog({
   }, [open, sessionType]);
 
   useEffect(() => {
+    if (!open || sessionType !== "DATA_COLLECTION") return;
+    setLoading(true);
+    fetch("/api/dataset-configs")
+      .then((r) => r.json())
+      .then((data: DatasetConfigSummary[]) => {
+        setDatasetConfigs(data);
+        setSelectedId((prev) => {
+          if (prev != null) return prev;
+          const def = data.find((c) => c.isDefault) ?? data[0] ?? null;
+          return def?.id ?? null;
+        });
+      })
+      .catch(() => setDatasetConfigs([]))
+      .finally(() => setLoading(false));
+  }, [open, sessionType]);
+
+  useEffect(() => {
     if (!open) {
       setStep("select");
       setForm(EMPTY_FORM);
     }
   }, [open]);
 
-  function handleTypeChange(type: "SCAN" | "WATERING") {
+  function handleTypeChange(type: SessionTypeOpt) {
     setSessionType(type);
     setSelectedId(null);
   }
@@ -226,7 +321,7 @@ export default function StartSessionDialog({
     setStep("create");
   }
 
-  function openEdit(config: ScanConfigSummary | WateringConfigSummary) {
+  function openEdit(config: AnyConfigSummary) {
     setForm(configToForm(config));
     setEditingId(config.id);
     setSaveError(null);
@@ -286,29 +381,9 @@ export default function StartSessionDialog({
         startXMm: parseFloat(form.startXMm) || 0,
         startYMm: parseFloat(form.startYMm) || 0,
       };
-      const body =
-        sessionType === "SCAN"
-          ? {
-              ...shared,
-              roiWPct: parseFloat(form.roiWPct) || 100,
-              roiHPct: parseFloat(form.roiHPct) || 100,
-              captureOffsets: form.captureOffsets.map(
-                ({ _key: _, ...rest }) => rest,
-              ),
-            }
-          : {
-              ...shared,
-              zMaxMm: parseFloat(form.zMaxMm) || 0,
-              zWaterMm: parseFloat(form.zWaterMm) || 50,
-              tofSamples: parseInt(form.tofSamples) || 5,
-              sweepSpeedMmSec: parseFloat(form.sweepSpeedMmSec) || 150,
-              waterSpeedMmSec: parseFloat(form.waterSpeedMmSec) || 100,
-            };
+      const body = buildConfigBody(sessionType, form, shared);
 
-      const url =
-        sessionType === "SCAN"
-          ? `/api/scan-configs/${editingId}`
-          : `/api/watering-configs/${editingId}`;
+      const url = `${configApiBase(sessionType)}/${editingId}`;
       const res = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -324,8 +399,12 @@ export default function StartSessionDialog({
         setScanConfigs((prev) =>
           prev.map((c) => (c.id === editingId ? updated : c)),
         );
-      } else {
+      } else if (sessionType === "WATERING") {
         setWateringConfigs((prev) =>
+          prev.map((c) => (c.id === editingId ? updated : c)),
+        );
+      } else {
+        setDatasetConfigs((prev) =>
           prev.map((c) => (c.id === editingId ? updated : c)),
         );
       }
@@ -353,27 +432,9 @@ export default function StartSessionDialog({
         startYMm: parseFloat(form.startYMm) || 0,
       };
 
-      const body =
-        sessionType === "SCAN"
-          ? {
-              ...shared,
-              roiWPct: parseFloat(form.roiWPct) || 100,
-              roiHPct: parseFloat(form.roiHPct) || 100,
-              captureOffsets: form.captureOffsets.map(
-                ({ _key: _, ...rest }) => rest,
-              ),
-            }
-          : {
-              ...shared,
-              zMaxMm: parseFloat(form.zMaxMm) || 0,
-              zWaterMm: parseFloat(form.zWaterMm) || 50,
-              tofSamples: parseInt(form.tofSamples) || 5,
-              sweepSpeedMmSec: parseFloat(form.sweepSpeedMmSec) || 150,
-              waterSpeedMmSec: parseFloat(form.waterSpeedMmSec) || 100,
-            };
+      const body = buildConfigBody(sessionType, form, shared);
 
-      const url =
-        sessionType === "SCAN" ? "/api/scan-configs" : "/api/watering-configs";
+      const url = configApiBase(sessionType);
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -387,8 +448,10 @@ export default function StartSessionDialog({
 
       if (sessionType === "SCAN") {
         setScanConfigs((prev) => [created, ...prev]);
-      } else {
+      } else if (sessionType === "WATERING") {
         setWateringConfigs((prev) => [created, ...prev]);
+      } else {
+        setDatasetConfigs((prev) => [created, ...prev]);
       }
       setSelectedId(created.id);
       setStep("select");
@@ -399,10 +462,12 @@ export default function StartSessionDialog({
     }
   }
 
-  const configs =
+  const configs: AnyConfigSummary[] =
     sessionType === "SCAN"
-      ? (scanConfigs as (ScanConfigSummary | WateringConfigSummary)[])
-      : (wateringConfigs as (ScanConfigSummary | WateringConfigSummary)[]);
+      ? scanConfigs
+      : sessionType === "WATERING"
+        ? wateringConfigs
+        : datasetConfigs;
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -463,14 +528,14 @@ function SelectStep({
   onCancel,
   onConfirm,
 }: {
-  sessionType: "SCAN" | "WATERING";
-  configs: (ScanConfigSummary | WateringConfigSummary)[];
+  sessionType: SessionTypeOpt;
+  configs: AnyConfigSummary[];
   selectedId: number | null;
   loading: boolean;
   isPending: boolean;
-  onTypeChange: (t: "SCAN" | "WATERING") => void;
+  onTypeChange: (t: SessionTypeOpt) => void;
   onSelect: (id: number) => void;
-  onEdit: (config: ScanConfigSummary | WateringConfigSummary) => void;
+  onEdit: (config: AnyConfigSummary) => void;
   onCreateNew: () => void;
   onCancel: () => void;
   onConfirm: () => void;
@@ -486,18 +551,18 @@ function SelectStep({
 
       {/* Type toggle */}
       <div className="mt-2 flex rounded-lg border p-1">
-        {(["SCAN", "WATERING"] as const).map((t) => (
+        {(["SCAN", "WATERING", "DATA_COLLECTION"] as const).map((t) => (
           <button
             key={t}
             onClick={() => onTypeChange(t)}
             className={cn(
-              "flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors",
+              "flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-colors",
               sessionType === t
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {t === "SCAN" ? "Ripeness Scan" : "Watering"}
+            {TYPE_LABEL[t]}
           </button>
         ))}
       </div>
@@ -519,7 +584,8 @@ function SelectStep({
         {!loading &&
           configs.map((config) => {
             const isSelected = selectedId === config.id;
-            const isWatering = "zMaxMm" in config;
+            const isWatering = isWateringConfig(config);
+            const isDataset = isDatasetConfig(config);
             return (
               <button
                 key={config.id}
@@ -603,6 +669,17 @@ function SelectStep({
                           value={`${(config as WateringConfigSummary).sweepSpeedMmSec} / ${(config as WateringConfigSummary).waterSpeedMmSec} mm/s`}
                         />
                       </>
+                    ) : isDataset ? (
+                      <>
+                        <Detail
+                          label="Sweep speed"
+                          value={`${(config as DatasetConfigSummary).speedMmSec} mm/s`}
+                        />
+                        <Detail
+                          label="Capture Z"
+                          value={`${(config as DatasetConfigSummary).zMm} mm`}
+                        />
+                      </>
                     ) : (
                       <>
                         <Detail
@@ -661,7 +738,7 @@ function CreateStep({
   onSave,
 }: {
   mode?: "create" | "edit";
-  sessionType: "SCAN" | "WATERING";
+  sessionType: SessionTypeOpt;
   form: CreateForm;
   saving: boolean;
   error: string | null;
@@ -683,8 +760,7 @@ function CreateStep({
             <ChevronLeft className="h-4 w-4" />
           </button>
           <DialogTitle>
-            {mode === "edit" ? "Edit" : "Create"}{" "}
-            {sessionType === "SCAN" ? "Scan" : "Watering"} Config
+            {mode === "edit" ? "Edit" : "Create"} {TYPE_LABEL[sessionType]} Config
           </DialogTitle>
         </div>
       </DialogHeader>
@@ -903,6 +979,30 @@ function CreateStep({
                 </div>
               </section>
             </>
+          )}
+
+          {/* DATA_COLLECTION: sweep params */}
+          {sessionType === "DATA_COLLECTION" && (
+            <section>
+              <SectionLabel>Sweep</SectionLabel>
+              <div className="grid grid-cols-2 gap-3">
+                <NumField
+                  label="Speed (mm/s)"
+                  value={form.speedMmSec}
+                  onChange={(v) => onField("speedMmSec", v)}
+                />
+                <NumField
+                  label="Capture Z (mm)"
+                  value={form.zMm}
+                  onChange={(v) => onField("zMm", v)}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] italic text-zinc-500">
+                The gantry sweeps every row continuously (no per-plant stops) at
+                this speed, holding the camera at this Z height, while recording a
+                single video.
+              </p>
+            </section>
           )}
         </div>
       </ScrollArea>

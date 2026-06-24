@@ -121,6 +121,19 @@ export type SSEEvent =
       detections: PiDetection[];
       total_fruits: number;
     }
+  // ── DATA_COLLECTION session events ──
+  | {
+      type: "recording_started";
+      session_id: string;
+      total_rows: number;
+    }
+  | {
+      type: "pass_progress";
+      session_id: string;
+      row: number;
+      rows_swept: number;
+      total_rows: number;
+    }
   // ── WATERING session events ──
   | {
       type: "tof_sweep_started";
@@ -224,7 +237,7 @@ function stripEmptyCaptureOffsets(
 export const piApi = {
   startSession: (
     id: string,
-    sessionType: "SCAN" | "WATERING" = "SCAN",
+    sessionType: "SCAN" | "WATERING" | "DATA_COLLECTION" = "SCAN",
     config?: Record<string, unknown> | null,
   ) => {
     // The scan config UI treats capture offsets as optional ("RPi will use
@@ -248,6 +261,9 @@ export const piApi = {
             : {}),
           ...(sessionType === "WATERING" && config
             ? { watering_config: config }
+            : {}),
+          ...(sessionType === "DATA_COLLECTION" && config
+            ? { dataset_config: config }
             : {}),
         }),
       },

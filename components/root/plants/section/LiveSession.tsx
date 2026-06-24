@@ -13,6 +13,7 @@ import {
   Radio,
   Ruler,
   Square,
+  Video,
   WifiOff,
 } from "lucide-react";
 import {
@@ -194,9 +195,10 @@ function CaptureCard({ cap }: { cap: LiveCapture }) {
 interface LiveSessionProps {
   onBack: () => void;
   sessionId: string;
-  sessionType?: "SCAN" | "WATERING";
+  sessionType?: "SCAN" | "WATERING" | "DATA_COLLECTION";
   scanConfig?: Record<string, unknown> | null;
   wateringConfig?: Record<string, unknown> | null;
+  datasetConfig?: Record<string, unknown> | null;
   /** DB status of the session — drives auto-reconnect for RUNNING sessions. */
   status?: string;
   /** Captures already persisted (used to seed the live view on reconnect). */
@@ -213,12 +215,14 @@ export default function LiveSession({
   sessionType = "SCAN",
   scanConfig,
   wateringConfig,
+  datasetConfig,
   status,
   initialCaptures,
   initialStops,
 }: LiveSessionProps) {
   const sessionId = initialSessionId;
   const isWatering = sessionType === "WATERING";
+  const isDataset = sessionType === "DATA_COLLECTION";
 
   const TOTAL_SCAN_PLANTS = 16;
   const TOTAL_WATER_COLS = 8;
@@ -236,6 +240,12 @@ export default function LiveSession({
   );
   const [captures, setCaptures] = useState<LiveCapture[]>([]);
   const [capturesOpen, setCapturesOpen] = useState(true);
+
+  // DATA_COLLECTION state
+  const [recording, setRecording] = useState(false);
+  const [rowsSwept, setRowsSwept] = useState(0);
+  const [totalRows, setTotalRows] = useState(0);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   // WATERING state
   const [tofProgress, setTofProgress] = useState({ done: 0, total: 0 });
@@ -391,13 +401,29 @@ export default function LiveSession({
         setMoistureAfter(Array.from(event.sensors));
         break;
 
+      // ── DATA_COLLECTION events ─────────────────────────────────────────────
+      case "recording_started":
+        setRecording(true);
+        setTotalRows(event.total_rows);
+        break;
+
+      case "pass_progress":
+        setRowsSwept(event.rows_swept);
+        setTotalRows(event.total_rows);
+        break;
+
       // ── Shared terminal events ─────────────────────────────────────────────
-      case "session_complete":
+      case "session_complete": {
         setPhase("complete");
         setCurrentPlantId(null);
         setGantryStatus(null);
+        setRecording(false);
+        const summaryUrl = (event.summary as { video_url?: string } | undefined)
+          ?.video_url;
+        if (summaryUrl) setVideoUrl(summaryUrl);
         esRef.current?.close();
         break;
+      }
 
       case "session_error":
         setPhase("error");
@@ -421,12 +447,15 @@ export default function LiveSession({
     setFuzzyDuration(null);
     setWateringStops([]);
     setMoistureAfter(null);
+    setRecording(false);
+    setRowsSwept(0);
+    setVideoUrl(null);
 
     try {
       await piApi.startSession(
         sessionId,
-        isWatering ? "WATERING" : "SCAN",
-        isWatering ? wateringConfig : scanConfig,
+        sessionType,
+        isWatering ? wateringConfig : isDataset ? datasetConfig : scanConfig,
       );
 
       connect();
@@ -512,7 +541,9 @@ export default function LiveSession({
 
   const idleDescription = isWatering
     ? `The gantry will home, sweep ${TOTAL_SCAN_PLANTS} positions for height, then water ${TOTAL_WATER_COLS} column zones.`
-    : `The gantry will home, then scan all ${TOTAL_SCAN_PLANTS} plants in sequence.`;
+    : isDataset
+      ? `The gantry will home, then sweep every row continuously while recording a single video for dataset collection.`
+      : `The gantry will home, then scan all ${TOTAL_SCAN_PLANTS} plants in sequence.`;
 
   return (
     <div className="flex flex-col gap-0 pt-4">
@@ -537,10 +568,16 @@ export default function LiveSession({
                 "rounded px-1.5 py-0.5 text-[10px] font-semibold",
                 isWatering
                   ? "bg-sky-500/10 text-sky-500"
-                  : "bg-emerald-500/10 text-emerald-500",
+                  : isDataset
+                    ? "bg-violet-500/10 text-violet-500"
+                    : "bg-emerald-500/10 text-emerald-500",
               )}
             >
-              {isWatering ? "Watering" : "Scan"}
+              {isWatering
+                ? "Watering"
+                : isDataset
+                  ? "Data Collection"
+                  : "Scan"}
             </span>
           </div>
           <p className="text-muted-foreground text-[11px]">
@@ -623,6 +660,8 @@ export default function LiveSession({
             <div className="bg-primary/10 mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full">
               {isWatering ? (
                 <Droplets size={22} className="text-primary" />
+              ) : isDataset ? (
+                <Video size={22} className="text-primary" />
               ) : (
                 <Play
                   size={22}
@@ -632,7 +671,11 @@ export default function LiveSession({
               )}
             </div>
             <p className="text-foreground text-sm font-semibold">
-              {isWatering ? "Ready to water" : "Ready to scan"}
+              {isWatering
+                ? "Ready to water"
+                : isDataset
+                  ? "Ready to record"
+                  : "Ready to scan"}
             </p>
             <p className="text-muted-foreground mt-1 text-[11px]">
               {idleDescription}
@@ -825,6 +868,99 @@ export default function LiveSession({
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          ) : isDataset ? (
+            /* ── DATA_COLLECTION live panel ──────────────────────────────── */
+            <div className="flex flex-col gap-3">
+              {/* Recording status */}
+              <div className="bg-muted flex items-center justify-between rounded-xl p-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-lg",
+                      recording ? "bg-red-100" : "bg-zinc-200 dark:bg-zinc-700",
+                    )}
+                  >
+                    <Video
+                      className={cn(
+                        "h-4 w-4",
+                        recording ? "text-red-600" : "text-zinc-500",
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {recording
+                        ? "Recording…"
+                        : isComplete
+                          ? "Recording finished"
+                          : "Standby"}
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      Continuous serpentine sweep
+                    </p>
+                  </div>
+                </div>
+                {recording && (
+                  <span className="flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-red-100">
+                    <Radio size={10} className="animate-pulse" />
+                    REC
+                  </span>
+                )}
+              </div>
+
+              {/* Row sweep progress */}
+              {totalRows > 0 && (
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                      Sweep Progress
+                    </p>
+                    <span className="text-[11px] text-zinc-400">
+                      {rowsSwept} / {totalRows} rows
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isComplete ? "bg-violet-500" : "bg-emerald-500",
+                      )}
+                      style={{
+                        width: `${totalRows > 0 ? Math.round((rowsSwept / totalRows) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Video player (once uploaded) */}
+              {videoUrl && (
+                <div>
+                  <p className="mb-2 text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                    Recorded Video
+                  </p>
+                  <video
+                    controls
+                    src={videoUrl}
+                    className="w-full rounded-xl bg-black"
+                  />
+                  <a
+                    href={videoUrl}
+                    download
+                    className="text-primary mt-2 inline-flex items-center gap-1.5 text-[11px] hover:underline"
+                  >
+                    <Video size={12} />
+                    Download video
+                  </a>
+                </div>
+              )}
+
+              {isComplete && !videoUrl && (
+                <p className="py-2 text-center text-[11px] text-zinc-500">
+                  Processing video…
+                </p>
               )}
             </div>
           ) : (

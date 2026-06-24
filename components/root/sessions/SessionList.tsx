@@ -12,6 +12,7 @@ import {
   Ruler,
   Scan,
   Sprout,
+  Video,
   Waves,
 } from "lucide-react";
 import { formatTime } from "../plants/section/SessionSidebar";
@@ -173,6 +174,7 @@ function WateringStats({ session }: { session: SessionType }) {
 
 function SessionRow({ session, onSelect }: { session: SessionType; onSelect: () => void }) {
   const isWatering = session.sessionType === "WATERING";
+  const isDataset  = session.sessionType === "DATA_COLLECTION";
   const statusKey  = (session.status ?? "PENDING") as keyof typeof STATUS_CFG;
   const st         = STATUS_CFG[statusKey] ?? STATUS_CFG.PENDING;
   const dur        = duration(session.startedAt, session.completedAt);
@@ -185,12 +187,20 @@ function SessionRow({ session, onSelect }: { session: SessionType; onSelect: () 
       onClick={onSelect}
       className="group w-full overflow-hidden rounded-xl border text-left transition-all hover:-translate-y-px hover:shadow-lg"
       style={{
-        borderColor: isWatering ? "rgb(14 165 233 / 0.25)" : "rgb(16 185 129 / 0.25)",
-        background:  isWatering ? "rgb(14 165 233 / 0.04)"  : "rgb(16 185 129 / 0.04)",
+        borderColor: isWatering
+          ? "rgb(14 165 233 / 0.25)"
+          : isDataset
+            ? "rgb(139 92 246 / 0.25)"
+            : "rgb(16 185 129 / 0.25)",
+        background: isWatering
+          ? "rgb(14 165 233 / 0.04)"
+          : isDataset
+            ? "rgb(139 92 246 / 0.04)"
+            : "rgb(16 185 129 / 0.04)",
       }}
     >
       {/* Colored top stripe */}
-      <div className={cn("h-0.5 w-full", isWatering ? "bg-sky-500" : "bg-emerald-500")} />
+      <div className={cn("h-0.5 w-full", isWatering ? "bg-sky-500" : isDataset ? "bg-violet-500" : "bg-emerald-500")} />
 
       <div className="px-3 py-2.5 space-y-2.5">
 
@@ -199,9 +209,9 @@ function SessionRow({ session, onSelect }: { session: SessionType; onSelect: () 
           <div className="flex items-center gap-2 min-w-0">
             <div className={cn(
               "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-              isWatering ? "bg-sky-500/15 text-sky-400" : "bg-emerald-500/15 text-emerald-400",
+              isWatering ? "bg-sky-500/15 text-sky-400" : isDataset ? "bg-violet-500/15 text-violet-400" : "bg-emerald-500/15 text-emerald-400",
             )}>
-              {isWatering ? <Waves className="h-3.5 w-3.5" /> : <Scan className="h-3.5 w-3.5" />}
+              {isWatering ? <Waves className="h-3.5 w-3.5" /> : isDataset ? <Video className="h-3.5 w-3.5" /> : <Scan className="h-3.5 w-3.5" />}
             </div>
             <span className="truncate text-[12px] font-semibold leading-tight text-zinc-100">
               {session.title ?? `Session #${session.id}`}
@@ -223,13 +233,13 @@ function SessionRow({ session, onSelect }: { session: SessionType; onSelect: () 
           {/* Type badge */}
           <span className={cn(
             "rounded px-1.5 py-0.5 text-[9px] font-semibold",
-            isWatering ? "bg-sky-500/10 text-sky-400" : "bg-emerald-500/10 text-emerald-400",
+            isWatering ? "bg-sky-500/10 text-sky-400" : isDataset ? "bg-violet-500/10 text-violet-400" : "bg-emerald-500/10 text-emerald-400",
           )}>
-            {isWatering ? "Watering" : "Scan"}
+            {isWatering ? "Watering" : isDataset ? "Data Collection" : "Scan"}
           </span>
 
           {/* Plant count */}
-          {session.totalPlants != null && !isWatering && (
+          {session.totalPlants != null && !isWatering && !isDataset && (
             <span className="text-[9px] text-zinc-600">{session.totalPlants} plants</span>
           )}
 
@@ -258,8 +268,16 @@ function SessionRow({ session, onSelect }: { session: SessionType; onSelect: () 
         )}
 
         {/* ── Stats (completed, or partial data from a stopped/errored run) ── */}
-        {(isDone || isBad) && (
+        {(isDone || isBad) && !isDataset && (
           isWatering ? <WateringStats session={session} /> : <ScanStats session={session} />
+        )}
+
+        {/* ── Data collection: video indicator ── */}
+        {(isDone || isBad) && isDataset && session.videoUrl && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-violet-500/8 px-2 py-1 text-[10px] text-violet-400">
+            <Video className="h-3 w-3 shrink-0" />
+            Video recorded
+          </div>
         )}
 
         {/* ── Notes ── */}

@@ -26,9 +26,10 @@ export const SessionSchema = z.object({
 /* ================= DTOs ================= */
 export const CreateSessionSchema = z.object({
   notes: z.string().optional(),
-  sessionType: z.enum(["SCAN", "WATERING"]).default("SCAN"),
+  sessionType: z.enum(["SCAN", "WATERING", "DATA_COLLECTION"]).default("SCAN"),
   scanConfigId: z.number().int().optional().nullable(),
   wateringConfigId: z.number().int().optional().nullable(),
+  datasetConfigId: z.number().int().optional().nullable(),
 });
 export const UpdateSessionSchema = SessionSchema.partial().extend({
   status: z.enum(SessionStatus).optional(),

@@ -3,11 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { SessionType } from "@/lib/types/session";
 import { format, intervalToDuration } from "date-fns";
-import { Clock, Leaf, AlertTriangle, CircleCheck, Droplets, Ruler } from "lucide-react";
+import { Clock, Leaf, AlertTriangle, CircleCheck, Droplets, Ruler, Video } from "lucide-react";
 
 export default function SessionOverview({ session }: { session: SessionType }) {
   const captures = session?.captures ?? [];
   const isWatering = session.sessionType === "WATERING";
+  const isDataset = session.sessionType === "DATA_COLLECTION";
 
   const readyToHarvest = captures.filter((c) => c.ripeCount > 3).length;
   const ripeTotal = captures.reduce((sum, c) => sum + c.ripeCount, 0);
@@ -33,10 +34,12 @@ export default function SessionOverview({ session }: { session: SessionType }) {
               className={
                 isWatering
                   ? "rounded border border-sky-400 px-1.5 py-0.5 text-[10px] font-semibold text-sky-500"
-                  : "rounded border border-emerald-400 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-500"
+                  : isDataset
+                    ? "rounded border border-violet-400 px-1.5 py-0.5 text-[10px] font-semibold text-violet-500"
+                    : "rounded border border-emerald-400 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-500"
               }
             >
-              {isWatering ? "Watering" : "Scan"}
+              {isWatering ? "Watering" : isDataset ? "Data Collection" : "Scan"}
             </span>
           </div>
           <Badge
@@ -55,7 +58,9 @@ export default function SessionOverview({ session }: { session: SessionType }) {
         <p className="text-muted-foreground text-sm">
           {isWatering
             ? "Monitoring watering progress & results"
-            : "Monitoring scan progress & results"}
+            : isDataset
+              ? "Continuous video sweep for dataset collection"
+              : "Monitoring scan progress & results"}
         </p>
       </CardHeader>
 
@@ -96,7 +101,40 @@ export default function SessionOverview({ session }: { session: SessionType }) {
 
         <Separator />
 
-        {isWatering ? (
+        {isDataset ? (
+          /* ── DATA_COLLECTION results ── */
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Recorded Video</p>
+            {session.videoUrl ? (
+              <>
+                <video
+                  controls
+                  src={session.videoUrl}
+                  className="w-full rounded-lg bg-black"
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {session.videoDurationSec != null
+                      ? `${session.videoDurationSec.toFixed(1)} s`
+                      : ""}
+                  </span>
+                  <a
+                    href={session.videoUrl}
+                    download
+                    className="inline-flex items-center gap-1.5 text-violet-500 hover:underline"
+                  >
+                    <Video className="h-3.5 w-3.5" />
+                    Download
+                  </a>
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No video recorded for this session.
+              </p>
+            )}
+          </div>
+        ) : isWatering ? (
           /* ── WATERING results ── */
           <div className="space-y-3">
             <p className="text-sm font-medium">Watering Result</p>

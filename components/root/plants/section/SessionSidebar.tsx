@@ -114,7 +114,7 @@ export default function PlantSessionSidebar() {
   }
 
   async function handleStartSession(
-    sessionType: "SCAN" | "WATERING",
+    sessionType: "SCAN" | "WATERING" | "DATA_COLLECTION",
     configId: number | null,
   ) {
     setStartPending(true);
@@ -125,6 +125,7 @@ export default function PlantSessionSidebar() {
         sessionType === "SCAN" ? (configId ?? undefined) : undefined,
         sessionType,
         sessionType === "WATERING" ? (configId ?? undefined) : undefined,
+        sessionType === "DATA_COLLECTION" ? (configId ?? undefined) : undefined,
       );
       setDialogOpen(false);
       // Refetch so the just-created session is in `allSessions` before we
@@ -222,7 +223,12 @@ export default function PlantSessionSidebar() {
               key={activeSession.id}
               sessionId={String(activeSession.id)}
               onBack={handleLiveBack}
-              sessionType={activeSession.sessionType as "SCAN" | "WATERING"}
+              sessionType={
+                activeSession.sessionType as
+                  | "SCAN"
+                  | "WATERING"
+                  | "DATA_COLLECTION"
+              }
               status={activeSession.status}
               initialCaptures={activeSession.captures}
               initialStops={activeSession.wateringStops}
@@ -234,6 +240,12 @@ export default function PlantSessionSidebar() {
               }
               wateringConfig={
                 activeSession.wateringConfigSnapshot as Record<
+                  string,
+                  unknown
+                > | null
+              }
+              datasetConfig={
+                activeSession.datasetConfigSnapshot as Record<
                   string,
                   unknown
                 > | null

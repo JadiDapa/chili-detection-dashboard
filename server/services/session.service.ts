@@ -4,6 +4,13 @@ import { PiPlantScan } from "@/lib/pi";
 import { fileUploadFromUrl } from "@/lib/file-upload";
 import { ScanConfigService } from "@/server/services/scan-config.service";
 import { WateringService } from "@/server/services/watering.service";
+import { DatasetConfigService } from "@/server/services/dataset-config.service";
+
+export type DatasetSessionSummaryInput = {
+  videoUrl: string;
+  durationSec: number;
+  frameCount?: number;
+};
 
 export type PiSyncPayload = {
   session_id: string;
@@ -117,16 +124,25 @@ export const SessionService = {
     bedId: number,
     notes?: string | null,
     scanConfigId?: number | null,
-    sessionType?: "SCAN" | "WATERING",
+    sessionType?: "SCAN" | "WATERING" | "DATA_COLLECTION",
     wateringConfigId?: number | null,
+    datasetConfigId?: number | null,
   ) {
-    const type: SessionType = sessionType === "WATERING" ? SessionType.WATERING : SessionType.SCAN;
+    const type: SessionType =
+      sessionType === "WATERING"
+        ? SessionType.WATERING
+        : sessionType === "DATA_COLLECTION"
+          ? SessionType.DATA_COLLECTION
+          : SessionType.SCAN;
 
     let resolvedScanConfigId: number | null = null;
     let scanConfigSnapshot: Prisma.InputJsonValue | undefined;
 
     let resolvedWateringConfigId: number | null = null;
     let wateringConfigSnapshot: Prisma.InputJsonValue | undefined;
+
+    let resolvedDatasetConfigId: number | null = null;
+    let datasetConfigSnapshot: Prisma.InputJsonValue | undefined;
 
     if (type === SessionType.SCAN) {
       // Resolve scan config: explicit id → fallback to default → none
@@ -139,7 +155,7 @@ export const SessionService = {
         const config = await prisma.scanConfig.findUnique({ where: { id: resolvedScanConfigId } });
         if (config) scanConfigSnapshot = ScanConfigService.buildSnapshot(config);
       }
-    } else {
+    } else if (type === SessionType.WATERING) {
       // Resolve watering config: explicit id → fallback to default → none
       resolvedWateringConfigId = wateringConfigId ?? null;
       if (resolvedWateringConfigId == null) {
@@ -149,6 +165,17 @@ export const SessionService = {
       if (resolvedWateringConfigId != null) {
         const config = await prisma.wateringConfig.findUnique({ where: { id: resolvedWateringConfigId } });
         if (config) wateringConfigSnapshot = WateringService.buildSnapshot(config);
+      }
+    } else {
+      // Resolve dataset config: explicit id → fallback to default → none
+      resolvedDatasetConfigId = datasetConfigId ?? null;
+      if (resolvedDatasetConfigId == null) {
+        const def = await prisma.datasetConfig.findFirst({ where: { isDefault: true } });
+        if (def) resolvedDatasetConfigId = def.id;
+      }
+      if (resolvedDatasetConfigId != null) {
+        const config = await prisma.datasetConfig.findUnique({ where: { id: resolvedDatasetConfigId } });
+        if (config) datasetConfigSnapshot = DatasetConfigService.buildSnapshot(config);
       }
     }
 
@@ -161,6 +188,8 @@ export const SessionService = {
         ...(scanConfigSnapshot !== undefined && { scanConfigSnapshot }),
         wateringConfigId: resolvedWateringConfigId,
         ...(wateringConfigSnapshot !== undefined && { wateringConfigSnapshot }),
+        datasetConfigId: resolvedDatasetConfigId,
+        ...(datasetConfigSnapshot !== undefined && { datasetConfigSnapshot }),
       },
     });
   },
@@ -241,6 +270,18 @@ export const SessionService = {
         totalUnripe: summary.ripeness.unripe,
         totalDamaged: summary.ripeness.broken,
         harvestReadyIds: JSON.stringify(summary.harvestReadyIds),
+      },
+    });
+  },
+
+  async completeDatasetSession(sessionId: number, summary: DatasetSessionSummaryInput) {
+    return prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        status: SessionStatus.COMPLETED,
+        completedAt: new Date(),
+        videoUrl: summary.videoUrl,
+        videoDurationSec: summary.durationSec,
       },
     });
   },
