@@ -35,9 +35,6 @@ export default function PlantsPage() {
         {/* Right Side — real planter beds from the DB */}
         <div className="space-y-3 lg:flex-2">
           <PlanterBedList />
- turning: 33, ripe: 34, broken: 4 }}
-            link="/plants/planter-bed-03"
-          />
         </div>
       </div>
     </main>
