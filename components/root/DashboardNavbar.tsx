@@ -3,17 +3,16 @@
 import { Bell, Search, Info, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import { User } from "@/generated/prisma";
-import { ToggleTheme } from "./ToggleTheme";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const NAV_LINKS = [
-  { label: "Overview", href: "/" },
-  { label: "Plants", href: "/plants" },
-  { label: "Environments", href: "/environments" },
-  { label: "Harvest", href: "/harvest" },
-  { label: "Reports", href: "/reports" },
+const menuItems = [
+  { title: "Dashboard", href: "/" },
+  { title: "Environments", href: "/environments" },
+  { title: "Plants", href: "/plants" },
+  { title: "Schedule", href: "/schedule" },
+  { title: "Dataset", href: "/dataset" },
 ];
 
 export default function Navbar({ user }: { user: User }) {
@@ -26,28 +25,28 @@ export default function Navbar({ user }: { user: User }) {
         href="/"
         className="group bg-card flex max-w-fit items-center gap-2 rounded-full p-1 pe-3"
       >
-        <div className="bg-primary relative flex size-11 items-center justify-center overflow-hidden rounded-full">
+        <div className="relative flex size-11 items-center justify-center overflow-hidden rounded-full">
           <Image
-            src="https://upload.wikimedia.org/wikipedia/id/thumb/b/bc/Logo_Universitas_Sriwijaya.svg/2489px-Logo_Universitas_Sriwijaya.svg.png"
+            src="/hme-logo.png"
             fill
             className="object-contain object-center p-1"
             alt="UNSRI"
           />
         </div>
         <span className="text-foreground text-xl font-black tracking-wide uppercase">
-          ELEKTRO
+          TE-ELEKTRO
         </span>
       </Link>
 
       {/* Center Nav */}
-      <nav className="border-border bg-card flex items-center gap-1 rounded-full px-2 py-1.5">
-        {NAV_LINKS.map((link) => {
+      <nav className="border-border bg-card flex items-center gap-1 justify-self-center rounded-full px-2 py-1.5">
+        {menuItems.map((item) => {
           const isActive =
-            pathname === link.href || pathname.startsWith(link.href + "/");
+            pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
-              key={link.href}
-              href={link.href}
+              key={item.href}
+              href={item.href}
               className={cn(
                 "rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
                 isActive
@@ -55,7 +54,7 @@ export default function Navbar({ user }: { user: User }) {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {link.label}
+              {item.title}
             </Link>
           );
         })}

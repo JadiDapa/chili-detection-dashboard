@@ -61,7 +61,7 @@ export default function SignInForm() {
       onSubmit={form.handleSubmit(onSubmit)}
       className="mt-4 w-full lg:mt-6"
     >
-      <FieldGroup {...form}>
+      <FieldGroup>
         <div className="space-y-4">
           <Controller
             control={form.control}

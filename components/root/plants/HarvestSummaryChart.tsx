@@ -11,56 +11,60 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-
-const chartData = [
-  { month: "09", desktop: 186, mobile: 80 },
-  { month: "10", desktop: 305, mobile: 200 },
-  { month: "11", desktop: 237, mobile: 120 },
-  { month: "12", desktop: 73, mobile: 190 },
-  { month: "01", desktop: 209, mobile: 130 },
-  { month: "02", desktop: 214, mobile: 140 },
-];
+import { usePlantsOverview } from "@/components/root/dashboard/hooks";
 
 const chartConfig = {
-  desktop: {
+  ripe: {
     label: "Ripe",
     color: "var(--chart-1)",
   },
-  mobile: {
+  unripe: {
     label: "Unripe",
     color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
 export default function HarvestSummaryChart() {
+  const { data } = usePlantsOverview();
+  const chartData = data?.monthly ?? [];
+
   return (
     <Card className="border-none p-4 shadow-none">
-      <ChartContainer className="h-63" config={chartConfig}>
-        <BarChart data={chartData}>
-          <CartesianGrid vertical={false} />
-          <XAxis
-            dataKey="month"
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v) => v.slice(0, 3)}
-          />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <ChartLegend content={<ChartLegendContent />} />
+      <p className="mb-2 text-sm font-semibold">Monthly Detection Summary</p>
+      {chartData.length === 0 ? (
+        <div className="bg-muted/50 flex h-63 items-center justify-center rounded-lg">
+          <p className="text-muted-foreground text-xs">
+            Complete a scan session to see monthly detections.
+          </p>
+        </div>
+      ) : (
+        <ChartContainer className="h-63" config={chartConfig}>
+          <BarChart data={chartData}>
+            <CartesianGrid vertical={false} />
+            <XAxis
+              dataKey="month"
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => v.slice(0, 3)}
+            />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <ChartLegend content={<ChartLegendContent />} />
 
-          <Bar
-            dataKey="desktop"
-            stackId="a"
-            fill="var(--color-desktop)"
-            radius={[0, 0, 4, 4]}
-          />
-          <Bar
-            dataKey="mobile"
-            stackId="a"
-            fill="var(--color-mobile)"
-            radius={[4, 4, 0, 0]}
-          />
-        </BarChart>
-      </ChartContainer>
+            <Bar
+              dataKey="ripe"
+              stackId="a"
+              fill="var(--color-ripe)"
+              radius={[0, 0, 4, 4]}
+            />
+            <Bar
+              dataKey="unripe"
+              stackId="a"
+              fill="var(--color-unripe)"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
+      )}
     </Card>
   );
 }

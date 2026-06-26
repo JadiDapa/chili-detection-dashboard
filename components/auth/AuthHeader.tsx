@@ -9,21 +9,36 @@ export default function AuthHeader({ title, subtitle }: AuthHeaderProps) {
   return (
     <div className="">
       <div className="">
-        <figure className="relative mx-auto size-24">
-          <Image
-            src={
-              "https://upload.wikimedia.org/wikipedia/id/thumb/b/bc/Logo_Universitas_Sriwijaya.svg/2489px-Logo_Universitas_Sriwijaya.svg.png"
-            }
-            fill
-            className="object-contain object-center"
-            alt=""
-          />
-        </figure>
-        <div className="text-primary flex items-center justify-center gap-4 text-center text-4xl font-semibold tracking-wide">
-          <p>
-            Greenhouse
-            <br /> Teknik UNSRI
-          </p>
+        <div className="mx-auto flex items-center justify-center gap-4">
+          <figure className="relative size-28">
+            <Image
+              src={"/logo.png"}
+              fill
+              className="object-contain object-center"
+              alt=""
+            />
+          </figure>
+          <figure className="relative size-24">
+            <Image
+              src={"/hme-logo.png"}
+              fill
+              className="object-contain object-center"
+              alt=""
+            />
+          </figure>
+        </div>
+        <div className="text-center">
+          <h1 className="text-primary text-4xl font-medium tracking-wide">
+            Smart Greenhouse
+          </h1>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-2xl font-semibold text-purple-700">
+              Teknik Elektro
+            </p>
+            <p className="text-2xl font-bold tracking-widest text-yellow-400">
+              UNSRI
+            </p>
+          </div>
         </div>
       </div>
 

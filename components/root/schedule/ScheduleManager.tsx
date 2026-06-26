@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -23,7 +22,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { CalendarClock, Droplets, Pencil, Plus, ScanLine, Trash2 } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  Droplets,
+  Pencil,
+  Plus,
+  ScanLine,
+  Trash2,
+} from "lucide-react";
 import {
   createScheduledTaskAction,
   deleteScheduledTaskAction,
@@ -61,6 +69,35 @@ type ConfigOption = { id: number; name: string; isDefault: boolean };
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NAMES_FULL = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+// A recurring task runs on weekday `d` when it has no day filter (every day)
+// or explicitly lists that weekday.
+function runsOnDay(task: ScheduleTaskView, d: number) {
+  return task.daysOfWeek.length === 0 || task.daysOfWeek.includes(d);
+}
 
 // ─── Manager ──────────────────────────────────────────────────────────────────
 
@@ -76,8 +113,24 @@ export default function ScheduleManager({
   const [editing, setEditing] = useState<ScheduleTaskView | null>(null);
   const [, startTransition] = useTransition();
 
-  const watering = tasks.filter((t) => t.sessionType === "WATERING");
-  const scans = tasks.filter((t) => t.sessionType === "SCAN");
+  // The current calendar week (Sun→Sat) and which weekday is selected.
+  const [today] = useState(() => new Date());
+  const todayWeekday = today.getDay();
+  const [selectedDay, setSelectedDay] = useState(todayWeekday);
+
+  const weekDates = (() => {
+    const start = new Date(today);
+    start.setDate(today.getDate() - todayWeekday);
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      return date;
+    });
+  })();
+
+  const dayTasks = tasks
+    .filter((t) => runsOnDay(t, selectedDay))
+    .sort((a, b) => a.timeOfDay.localeCompare(b.timeOfDay));
 
   function openCreate() {
     setEditing(null);
@@ -96,43 +149,141 @@ export default function ScheduleManager({
   }
 
   function remove(task: ScheduleTaskView) {
-    if (!confirm(`Delete this ${task.sessionType.toLowerCase()} schedule?`)) return;
+    if (!confirm(`Delete this ${task.sessionType.toLowerCase()} schedule?`))
+      return;
     startTransition(async () => {
       await deleteScheduledTaskAction(task.id);
       router.refresh();
     });
   }
 
+  const monthLabel = `${MONTH_NAMES[weekDates[selectedDay].getMonth()]} ${weekDates[selectedDay].getFullYear()}`;
+
   return (
-    <div className="space-y-8">
-      <div className="flex justify-end">
-        <Button onClick={openCreate}>
+    <div className="space-y-5">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-base font-semibold">
+          <CalendarClock className="h-4 w-4 text-green-700" />
+          {monthLabel}
+        </div>
+        <Button onClick={openCreate} className="rounded-full">
           <Plus className="mr-1 h-4 w-4" /> Add schedule
         </Button>
       </div>
 
-      {tasks.length === 0 && (
-        <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-          No schedules yet. Add a watering or scan task to run the gantry automatically.
+      {/* Week strip */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 rounded-full border"
+          onClick={() => {
+            setSelectedDay((prev) => Math.max(0, prev - 1));
+          }}
+          disabled={selectedDay === 0}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
+        <div className="bg-card flex flex-1 items-stretch rounded-2xl border p-1">
+          {weekDates.map((date, d) => {
+            const isSelected = d === selectedDay;
+            const isToday = d === todayWeekday;
+
+            return (
+              <div key={d} className="flex flex-1 items-stretch">
+                <button
+                  onClick={() => setSelectedDay(d)}
+                  className={cn(
+                    "flex flex-1 flex-col items-center gap-1.5 rounded-xl py-1 transition-colors",
+                    isSelected
+                      ? "bg-green-700 text-white"
+                      : "hover:bg-muted text-muted-foreground",
+                  )}
+                >
+                  <span className="text-xl font-medium tracking-wide uppercase">
+                    {DAY_NAMES[d]}
+                  </span>
+
+                  <span
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold",
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : isToday
+                          ? "bg-green-700/10 text-green-700"
+                          : "text-foreground",
+                    )}
+                  >
+                    {date.getDate()}
+                  </span>
+                </button>
+
+                {d < weekDates.length - 1 && (
+                  <div className="bg-border my-3 w-px" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10 rounded-full border"
+          onClick={() => {
+            setSelectedDay((prev) => Math.min(6, prev + 1));
+          }}
+          disabled={selectedDay === 6}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Day header */}
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold">
+          {DAY_NAMES_FULL[selectedDay]}
+          {selectedDay === todayWeekday && (
+            <span className="ml-2 text-xs font-normal text-green-700">
+              Today
+            </span>
+          )}
+        </h2>
+        <span className="text-muted-foreground text-xs">
+          {dayTasks.length === 0
+            ? "Nothing scheduled"
+            : `${dayTasks.length} session${dayTasks.length > 1 ? "s" : ""}`}
+        </span>
+      </div>
+
+      {/* Timeline */}
+      {dayTasks.length === 0 ? (
+        <div className="text-muted-foreground rounded-2xl border border-dashed p-10 text-center text-sm">
+          {tasks.length === 0
+            ? "No schedules yet. Add a watering or scan task to run the gantry automatically."
+            : `No watering or scanning runs on ${DAY_NAMES_FULL[selectedDay]}.`}
+        </div>
+      ) : (
+        <div className="space-y-0">
+          {dayTasks.map((t, i) => (
+            <TimelineEvent
+              key={t.id}
+              task={t}
+              isLast={i === dayTasks.length - 1}
+              onEdit={() => openEdit(t)}
+              onToggle={(v) => toggleEnabled(t, v)}
+              onDelete={() => remove(t)}
+            />
+          ))}
         </div>
       )}
 
-      <ScheduleGroup
-        title="Watering"
-        icon={<Droplets className="h-4 w-4 text-sky-500" />}
-        tasks={watering}
-        onEdit={openEdit}
-        onToggle={toggleEnabled}
-        onDelete={remove}
-      />
-      <ScheduleGroup
-        title="Scanning"
-        icon={<ScanLine className="h-4 w-4 text-emerald-500" />}
-        tasks={scans}
-        onEdit={openEdit}
-        onToggle={toggleEnabled}
-        onDelete={remove}
-      />
+      <p className="text-muted-foreground text-[11px]">
+        Schedules repeat every week. The gantry runs them automatically — no
+        need to keep this page open.
+      </p>
 
       <ScheduleTaskDialog
         key={editing?.id ?? "new"}
@@ -149,117 +300,121 @@ export default function ScheduleManager({
   );
 }
 
-function ScheduleGroup({
-  title,
-  icon,
-  tasks,
-  onEdit,
-  onToggle,
-  onDelete,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  tasks: ScheduleTaskView[];
-  onEdit: (t: ScheduleTaskView) => void;
-  onToggle: (t: ScheduleTaskView, enabled: boolean) => void;
-  onDelete: (t: ScheduleTaskView) => void;
-}) {
-  if (tasks.length === 0) return null;
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        {icon}
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          {title}
-        </h2>
-        <Badge variant="secondary">{tasks.length}</Badge>
-      </div>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {tasks.map((t) => (
-          <TaskCard
-            key={t.id}
-            task={t}
-            onEdit={() => onEdit(t)}
-            onToggle={(v) => onToggle(t, v)}
-            onDelete={() => onDelete(t)}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TaskCard({
+function TimelineEvent({
   task,
+  isLast,
   onEdit,
   onToggle,
   onDelete,
 }: {
   task: ScheduleTaskView;
+  isLast: boolean;
   onEdit: () => void;
   onToggle: (enabled: boolean) => void;
   onDelete: () => void;
 }) {
+  const isWatering = task.sessionType === "WATERING";
+  const Icon = isWatering ? Droplets : ScanLine;
   const days =
     task.daysOfWeek.length === 0
       ? "Every day"
       : task.daysOfWeek.map((d) => DAY_NAMES[d]).join(", ");
+  const lastRun = task.runs[0];
 
   return (
-    <div className={cn("rounded-2xl border p-4", !task.enabled && "opacity-60")}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-semibold tabular-nums">{task.timeOfDay}</span>
-            <span className="text-xs text-muted-foreground">{task.timezone}</span>
-          </div>
-          <p className="mt-0.5 truncate text-sm font-medium">
-            {task.name ?? `${task.sessionType === "WATERING" ? "Watering" : "Scan"} session`}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {days} &middot; {task.configName ?? "Default config"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Switch checked={task.enabled} onCheckedChange={onToggle} />
-          <button
-            onClick={onEdit}
-            className="rounded p-1.5 text-muted-foreground hover:text-foreground"
-            title="Edit"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="rounded p-1.5 text-muted-foreground hover:text-red-500"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+    <div className="flex gap-3 sm:gap-4">
+      {/* Time gutter */}
+      <div className="text-muted-foreground w-12 shrink-0 pt-3 text-right text-sm font-semibold tabular-nums sm:w-14">
+        {task.timeOfDay}
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5 border-t pt-3 text-xs text-muted-foreground">
-        <CalendarClock className="h-3.5 w-3.5" />
-        {task.enabled && task.nextRunAt ? (
-          <>Next run {formatInTz(task.nextRunAt, task.timezone)}</>
-        ) : (
-          <>Disabled</>
-        )}
+      {/* Rail */}
+      <div className="flex flex-col items-center pt-3.5">
+        <span
+          className={cn(
+            "h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-white",
+            task.enabled
+              ? isWatering
+                ? "bg-sky-500"
+                : "bg-emerald-500"
+              : "bg-muted-foreground/40",
+          )}
+        />
+        {!isLast && <span className="bg-border w-px flex-1" />}
       </div>
 
-      {task.runs.length > 0 && (
-        <ul className="mt-2 space-y-1">
-          {task.runs.slice(0, 3).map((r) => (
-            <li key={r.id} className="flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">
-                {formatInTz(r.scheduledFor, task.timezone)}
+      {/* Event card */}
+      <div className="flex-1 pb-3">
+        <div
+          className={cn(
+            "rounded-2xl border-l-4 p-3.5 transition-colors sm:p-4",
+            !task.enabled
+              ? "border-l-muted-foreground/30 bg-muted/40 opacity-70"
+              : isWatering
+                ? "border-l-sky-400 bg-sky-50/60 dark:bg-sky-950/20"
+                : "border-l-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/20",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <span
+                className={cn(
+                  "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                  isWatering
+                    ? "bg-sky-500/15 text-sky-600"
+                    : "bg-emerald-500/15 text-emerald-600",
+                )}
+              >
+                <Icon className="h-4 w-4" />
               </span>
-              <RunStatus run={r} />
-            </li>
-          ))}
-        </ul>
-      )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">
+                  {task.name ??
+                    `${isWatering ? "Watering" : "Ripeness Scan"} session`}
+                </p>
+                <p className="text-muted-foreground truncate text-xs">
+                  {task.configName ?? "Default config"} &middot; {days}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Switch checked={task.enabled} onCheckedChange={onToggle} />
+              <button
+                onClick={onEdit}
+                className="text-muted-foreground hover:bg-background hover:text-foreground rounded-md p-1.5"
+                title="Edit"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onDelete}
+                className="text-muted-foreground hover:bg-background rounded-md p-1.5 hover:text-red-500"
+                title="Delete"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2.5 text-xs">
+            <span className="flex items-center gap-1.5">
+              <CalendarClock className="h-3.5 w-3.5" />
+              {task.enabled && task.nextRunAt
+                ? `Next ${formatInTz(task.nextRunAt, task.timezone)}`
+                : "Disabled"}
+            </span>
+            {lastRun && (
+              <span className="flex items-center gap-1.5">
+                <span className="text-muted-foreground/60">Last</span>
+                <RunStatus run={lastRun} />
+              </span>
+            )}
+            <span className="text-muted-foreground/70 ml-auto">
+              {task.timezone}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -267,13 +422,25 @@ function TaskCard({
 function RunStatus({ run }: { run: ScheduleRunView }) {
   if (run.status === "SKIPPED") {
     return (
-      <span className="font-medium text-amber-500" title={run.skipReason ?? undefined}>
+      <span
+        className="font-medium text-amber-500"
+        title={run.skipReason ?? undefined}
+      >
         Skipped
       </span>
     );
   }
   const s = run.sessionStatus;
-  const label = s === "COMPLETED" ? "Completed" : s === "ERROR" ? "Error" : s === "RUNNING" ? "Running" : s === "STOPPED" ? "Stopped" : "Queued";
+  const label =
+    s === "COMPLETED"
+      ? "Completed"
+      : s === "ERROR"
+        ? "Error"
+        : s === "RUNNING"
+          ? "Running"
+          : s === "STOPPED"
+            ? "Stopped"
+            : "Queued";
   const color =
     s === "COMPLETED"
       ? "text-emerald-500"
@@ -282,7 +449,14 @@ function RunStatus({ run }: { run: ScheduleRunView }) {
         : s === "RUNNING"
           ? "text-sky-500"
           : "text-muted-foreground";
-  return <span className={cn("font-medium", color)} title={run.skipReason ?? undefined}>{label}</span>;
+  return (
+    <span
+      className={cn("font-medium", color)}
+      title={run.skipReason ?? undefined}
+    >
+      {label}
+    </span>
+  );
 }
 
 function formatInTz(iso: string, timeZone: string): string {
@@ -331,16 +505,21 @@ function ScheduleTaskDialog({
   useEffect(() => {
     if (!open) return;
     setLoadingConfigs(true);
-    const url = sessionType === "SCAN" ? "/api/scan-configs" : "/api/watering-configs";
+    const url =
+      sessionType === "SCAN" ? "/api/scan-configs" : "/api/watering-configs";
     fetch(url)
       .then((r) => r.json())
-      .then((data: ConfigOption[]) => setConfigs(Array.isArray(data) ? data : []))
+      .then((data: ConfigOption[]) =>
+        setConfigs(Array.isArray(data) ? data : []),
+      )
       .catch(() => setConfigs([]))
       .finally(() => setLoadingConfigs(false));
   }, [open, sessionType]);
 
   function toggleDay(d: number) {
-    setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
+    setDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
+    );
   }
 
   async function handleSave() {
@@ -377,7 +556,9 @@ function ScheduleTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{editing ? "Edit schedule" : "Add schedule"}</DialogTitle>
+          <DialogTitle>
+            {editing ? "Edit schedule" : "Add schedule"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -426,7 +607,8 @@ function ScheduleTaskDialog({
           {/* Days of week */}
           <div className="space-y-1.5">
             <Label className="text-xs">
-              Days <span className="text-muted-foreground">(none = every day)</span>
+              Days{" "}
+              <span className="text-muted-foreground">(none = every day)</span>
             </Label>
             <div className="flex gap-1.5">
               {DAY_LABELS.map((lbl, i) => (
@@ -437,7 +619,7 @@ function ScheduleTaskDialog({
                     "flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold transition-colors",
                     days.includes(i)
                       ? "bg-primary text-primary-foreground"
-                      : "border text-muted-foreground hover:bg-muted",
+                      : "text-muted-foreground hover:bg-muted border",
                   )}
                   title={DAY_NAMES[i]}
                 >
@@ -452,7 +634,9 @@ function ScheduleTaskDialog({
             <Label className="text-xs">Configuration</Label>
             <Select
               value={configId != null ? String(configId) : "default"}
-              onValueChange={(v) => setConfigId(v === "default" ? null : Number(v))}
+              onValueChange={(v) =>
+                setConfigId(v === "default" ? null : Number(v))
+              }
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Default config" />
@@ -468,17 +652,25 @@ function ScheduleTaskDialog({
               </SelectContent>
             </Select>
             {loadingConfigs && (
-              <p className="text-[11px] text-muted-foreground">Loading presets…</p>
+              <p className="text-muted-foreground text-[11px]">
+                Loading presets…
+              </p>
             )}
           </div>
 
           {error && (
-            <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-500">{error}</p>
+            <p className="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-500">
+              {error}
+            </p>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving}>

@@ -2,11 +2,11 @@
 
 import { GreenhouseCam } from "@/components/root/dashboard/GreenhouseCam";
 import ScheduleReminder from "@/components/root/dashboard/ScheduleReminder";
-import SmallStatCard from "@/components/root/dashboard/SmallStatCard";
+import SecondaryStats from "@/components/root/dashboard/SecondaryStats";
+import StatGrid from "@/components/root/dashboard/StatGrid";
 import WaterResourceUsage from "@/components/root/dashboard/WaterResourceUsage";
 import WeeklyYeild from "@/components/root/dashboard/WeeklyYeild";
-import { Card } from "@/components/ui/card";
-import { Leaf, BoxSelectIcon, Thermometer, Sun } from "lucide-react";
+import { piApi } from "@/lib/pi";
 
 // ─── page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
@@ -18,106 +18,20 @@ export default function DashboardPage() {
           {/* Schedule */}
           <ScheduleReminder />
 
-          {/* Stats 2×2 */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Card className="flex flex-col gap-1 border-none p-4 shadow-none">
-              <div className="flex max-w-[80%] items-center gap-2">
-                <div className="bg-muted flex items-center justify-center rounded-full p-3">
-                  <Leaf className="size-5 text-green-700" />
-                </div>
-                <p className="text-base leading-tight font-medium">
-                  Total Tree Planted
-                </p>
-              </div>
-              <p className="mt-3 text-3xl font-medium">
-                48{" "}
-                <span className="text-muted-foreground text-sm font-normal">
-                  Chili Trees
-                </span>
-              </p>
-            </Card>
-            <Card className="flex flex-col gap-1 border-none p-4 shadow-none">
-              <div className="flex max-w-[80%] items-center gap-2">
-                <div className="bg-muted flex items-center justify-center rounded-full p-3">
-                  <BoxSelectIcon className="size-5 text-green-700" />
-                </div>
-                <p className="text-base leading-tight font-medium">
-                  Active Planting Area
-                </p>
-              </div>
-              <p className="mt-3 text-3xl font-medium">
-                3{" "}
-                <span className="text-muted-foreground text-sm font-normal">
-                  Planter Bed
-                </span>
-              </p>
-            </Card>
-            <Card className="flex flex-col gap-1 border-none p-4 shadow-none">
-              <div className="flex max-w-[80%] items-center gap-2">
-                <div className="bg-muted flex items-center justify-center rounded-full p-3">
-                  <Sun className="size-5 text-green-700" />
-                </div>
-                <p className="text-base leading-tight font-medium">
-                  Lighting Level
-                </p>
-              </div>
-              <p className="mt-3 text-3xl font-medium">
-                270 lux{" "}
-                <span className="text-muted-foreground text-sm font-normal">
-                  High --- Day
-                </span>
-              </p>
-            </Card>
-            <Card className="flex flex-col gap-1 border-none p-4 shadow-none">
-              <div className="flex max-w-[80%] items-center gap-2">
-                <div className="bg-muted flex items-center justify-center rounded-full p-3">
-                  <Thermometer className="size-5 text-green-700" />
-                </div>
-                <p className="text-base leading-tight font-medium">
-                  Environment Temperature
-                </p>
-              </div>
-              <p className="mt-3 text-3xl font-medium">
-                28°c{" "}
-                <span className="text-muted-foreground text-sm font-normal">
-                  Average
-                </span>
-              </p>
-            </Card>
-          </div>
+          {/* Stats 2×2 — plant/bed counts + live ambient sensors */}
+          <StatGrid />
 
-          {/* Farm Resource Usage */}
+          {/* Irrigation summary */}
           <WaterResourceUsage />
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <SmallStatCard
-              icon={Thermometer}
-              label="Environment Temperature"
-              value="28°c"
-              unit="Average"
-              desc="Lorem ipsum dolor sit amet."
-            />
-            <SmallStatCard
-              icon={Thermometer}
-              label="Environment Temperature"
-              value="28°c"
-              unit="Average"
-              desc="Lorem ipsum dolor sit amet."
-            />{" "}
-            <SmallStatCard
-              icon={Thermometer}
-              label="Environment Temperature"
-              value="28°c"
-              unit="Average"
-              desc="Lorem ipsum dolor sit amet."
-            />
-          </div>
+          {/* Plant-health metrics from the latest sessions */}
+          <SecondaryStats />
         </div>
 
         {/* ════ RIGHT COLUMN ════ */}
         <div className="flex flex-col gap-2 lg:flex-3">
           <GreenhouseCam
-            streamUrl="http://YOUR_CAMERA_IP/stream" // ← your MJPEG/HLS URL
+            streamUrl={piApi.streamUrl()}
             streamType="mjpeg"
             label="Greenhouse A — Cam 01"
           />

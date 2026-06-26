@@ -64,7 +64,7 @@ export function GreenhouseCam({
   const content = (
     <div
       className={`relative overflow-hidden rounded-xl bg-green-800 ${
-        fullscreen ? "fixed inset-4 z-50 shadow-2xl" : "h-118 w-full"
+        fullscreen ? "fixed inset-4 z-50 shadow-2xl" : "h-120 w-full"
       }`}
     >
       {/* ── Stream ── */}

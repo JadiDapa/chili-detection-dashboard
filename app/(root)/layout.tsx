@@ -13,7 +13,7 @@ export default async function DashboardLayout({ children }: Props) {
 
   return (
     <SidebarProvider>
-      <div className="bg-muted relative flex min-h-screen w-full flex-col">
+      <div className="bg-muted relative flex h-screen w-full flex-col overflow-hidden">
         {/* Mobile / tablet navigation: top bar with drawer + bottom tab bar */}
         <MobileNav user={user} />
 
@@ -23,12 +23,10 @@ export default async function DashboardLayout({ children }: Props) {
         </div>
 
         {/* Sidebar + content side by side below */}
-        <div className="flex flex-1 overflow-hidden md:ps-20">
-          <div className="fixed left-0">
-            <DashboardSidebar user={user} />
-          </div>
+        <div className="flex min-h-0 flex-1">
+          <DashboardSidebar user={user} />
           {/* pb on mobile leaves room for the fixed bottom tab bar */}
-          <main className="flex w-full flex-col gap-2 overflow-hidden px-2 pt-2 pb-24 md:px-0 md:pt-2 md:pe-2 md:pb-2">
+          <main className="flex w-full flex-col gap-2 overflow-y-auto px-2 pt-2 pb-24 md:px-0 md:pt-2 md:pe-2 md:pb-2">
             {children}
           </main>
         </div>

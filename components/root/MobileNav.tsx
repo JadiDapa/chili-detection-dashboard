@@ -33,7 +33,6 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Environments", url: "/environments", icon: Activity },
   { title: "Plants", url: "/plants", icon: Leaf },
-  { title: "Tree Chamber", url: "/chamber", icon: Cylinder },
   { title: "Dataset Collection", url: "/dataset", icon: DatabaseZapIcon },
 ];
 
@@ -41,7 +40,9 @@ const menuItems = [
 const bottomBarItems = menuItems;
 
 const isActivePath = (pathname: string, url: string) =>
-  url === "/" ? pathname === "/" : pathname === url || pathname.startsWith(url + "/");
+  url === "/"
+    ? pathname === "/"
+    : pathname === url || pathname.startsWith(url + "/");
 
 export default function MobileNav({ user }: { user: User }) {
   const pathname = usePathname();
@@ -66,7 +67,7 @@ export default function MobileNav({ user }: { user: User }) {
         <Link href="/" className="flex items-center gap-2">
           <div className="bg-primary relative flex size-9 items-center justify-center overflow-hidden rounded-full">
             <Image
-              src="https://upload.wikimedia.org/wikipedia/id/thumb/b/bc/Logo_Universitas_Sriwijaya.svg/2489px-Logo_Universitas_Sriwijaya.svg.png"
+              src="https://icon2.cleanpng.com/20190216/yfi/kisspng-sriwijaya-university-syiah-kuala-university-univer-5c681318068569.0150597415503245040267.jpg"
               fill
               className="object-contain object-center p-1"
               alt="UNSRI"
