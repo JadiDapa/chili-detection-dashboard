@@ -87,7 +87,13 @@ export type SSEEvent =
       session_id: string;
       summary: Record<string, unknown>;
     }
-  | { type: "session_error"; session_id: string; message: string }
+  | {
+      type: "session_error";
+      session_id: string;
+      message: string;
+      /** Data Collection: URL of footage saved despite the early end, if any. */
+      video_url?: string | null;
+    }
   | {
       type: "session_reconnect";
       session_id: string;

@@ -286,6 +286,21 @@ export const SessionService = {
     });
   },
 
+  // Attach an uploaded recording to the session WITHOUT touching its status.
+  // Called by the video upload route so footage is persisted the moment it
+  // arrives — even for a stopped/errored Data Collection run, where there is no
+  // /complete call. Status is set separately by the /complete, /error, or
+  // /status routes.
+  async attachVideo(sessionId: number, videoUrl: string, durationSec?: number) {
+    return prisma.session.update({
+      where: { id: sessionId },
+      data: {
+        videoUrl,
+        ...(durationSec !== undefined && { videoDurationSec: durationSec }),
+      },
+    });
+  },
+
   async errorSession(sessionId: number) {
     const data: Prisma.SessionUpdateInput = {
       status: SessionStatus.ERROR,

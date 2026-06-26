@@ -441,6 +441,8 @@ export default function LiveSession({
         setError(event.message);
         setRecording(false);
         setUploading(false);
+        // A Data Collection run that ended early may still have saved its footage.
+        if (event.video_url) setVideoUrl(event.video_url);
         esRef.current?.close();
         break;
     }
@@ -692,8 +694,13 @@ export default function LiveSession({
         </div>
       )}
 
-      {/* ── RUNNING / COMPLETE / STOPPED: live data ── */}
-      {(phase === "running" || phase === "complete" || phase === "stopped") && (
+      {/* ── RUNNING / COMPLETE / STOPPED: live data ──
+          For Data Collection we also render on `error` so footage saved despite
+          an early end (e.g. a Z-limit fault mid-sweep) is still shown below. */}
+      {(phase === "running" ||
+        phase === "complete" ||
+        phase === "stopped" ||
+        (isDataset && phase === "error")) && (
         <>
           {isWatering ? (
             /* ── WATERING live panel ─────────────────────────────────────── */
@@ -894,9 +901,13 @@ export default function LiveSession({
                         ? "Recording…"
                         : uploading
                           ? "Uploading video…"
-                          : isComplete
-                            ? "Recording finished"
-                            : "Standby"}
+                          : videoUrl
+                            ? "Recording saved"
+                            : isComplete
+                              ? "Recording finished"
+                              : isEnded
+                                ? "Recording stopped"
+                                : "Standby"}
                     </p>
                     <p className="text-[11px] text-zinc-500">
                       {uploading
