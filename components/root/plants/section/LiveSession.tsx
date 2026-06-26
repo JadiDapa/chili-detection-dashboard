@@ -487,18 +487,6 @@ export default function LiveSession({
     }
   }
 
-  // ── Emergency stop ────────────────────────────────────────────────────────
-  // Halts the gantry and de-energizes the drivers immediately (RPi sends STOP
-  // then EN off). Does not touch session bookkeeping — the scan loop will error
-  // out on its own, preserving whatever was scanned so far.
-  async function handleEStop() {
-    try {
-      await piApi.gantryStop();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Emergency stop failed");
-    }
-  }
-
   // ── Force stop & reset ────────────────────────────────────────────────────
   // Recovery for a session stuck in RUNNING (e.g. the RPi task died without
   // emitting a terminal event). Halts the gantry best-effort and marks the
@@ -637,18 +625,6 @@ export default function LiveSession({
           </p>
           <p className="font-mono text-[10px] text-zinc-500">URL: {PI_URL}</p>
         </div>
-      )}
-
-      {/* ── Emergency stop (always reachable while the gantry may be moving) ── */}
-      {(phase === "creating" || phase === "running") && (
-        <button
-          onClick={handleEStop}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-red-600 bg-red-600 py-2.5 text-[13px] font-bold tracking-wide text-white uppercase transition-colors hover:bg-red-700"
-          title="Immediately halt the gantry and cut motor power"
-        >
-          <Square size={14} fill="currentColor" />
-          Emergency Stop
-        </button>
       )}
 
       <div className="my-3 border-t" />

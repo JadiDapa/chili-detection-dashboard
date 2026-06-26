@@ -5,6 +5,7 @@ import { ScanConfigService } from "@/server/services/scan-config.service";
 import ScanningResultChart from "@/components/root/plants/section/ScanningResultChart";
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
 import GantryControl from "@/components/root/plants/section/GantryControl";
+import EmergencyStopButton from "@/components/root/plants/section/EmergencyStopButton";
 import HardwarePanel from "@/components/root/plants/section/HardwarePanel";
 import ServoPanTiltControl from "@/components/root/plants/section/ServoPanTiltControl";
 import SessionSidebar from "@/components/root/plants/section/SessionSidebar";
@@ -27,9 +28,12 @@ export default async function PlantSections({
             title={`Section: ${section}`}
             subtitle="Live feed and detailed information about this planter bed"
           />
-          <Button className="shrink-0">
-            <span className="hidden sm:inline">Start Session</span> <Play />
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <EmergencyStopButton />
+            <Button className="shrink-0">
+              <span className="hidden sm:inline">Start Session</span> <Play />
+            </Button>
+          </div>
         </div>
 
         <div className="mt-4">
