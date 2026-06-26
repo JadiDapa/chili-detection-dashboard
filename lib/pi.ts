@@ -134,6 +134,11 @@ export type SSEEvent =
       rows_swept: number;
       total_rows: number;
     }
+  | {
+      type: "video_uploading";
+      session_id: string;
+      size_mb: number;
+    }
   // ── WATERING session events ──
   | {
       type: "tof_sweep_started";

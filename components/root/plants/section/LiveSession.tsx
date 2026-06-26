@@ -246,6 +246,8 @@ export default function LiveSession({
   const [rowsSwept, setRowsSwept] = useState(0);
   const [totalRows, setTotalRows] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadSizeMb, setUploadSizeMb] = useState(0);
 
   // WATERING state
   const [tofProgress, setTofProgress] = useState({ done: 0, total: 0 });
@@ -412,12 +414,21 @@ export default function LiveSession({
         setTotalRows(event.total_rows);
         break;
 
+      case "video_uploading":
+        // Sweep is done and the recorder stopped; the RPi is now pushing the
+        // file to the dashboard. Switch the panel from "recording" to "uploading".
+        setRecording(false);
+        setUploading(true);
+        setUploadSizeMb(event.size_mb);
+        break;
+
       // ── Shared terminal events ─────────────────────────────────────────────
       case "session_complete": {
         setPhase("complete");
         setCurrentPlantId(null);
         setGantryStatus(null);
         setRecording(false);
+        setUploading(false);
         const summaryUrl = (event.summary as { video_url?: string } | undefined)
           ?.video_url;
         if (summaryUrl) setVideoUrl(summaryUrl);
@@ -428,6 +439,8 @@ export default function LiveSession({
       case "session_error":
         setPhase("error");
         setError(event.message);
+        setRecording(false);
+        setUploading(false);
         esRef.current?.close();
         break;
     }
@@ -450,6 +463,8 @@ export default function LiveSession({
     setRecording(false);
     setRowsSwept(0);
     setVideoUrl(null);
+    setUploading(false);
+    setUploadSizeMb(0);
 
     try {
       await piApi.startSession(
@@ -855,26 +870,38 @@ export default function LiveSession({
                   <div
                     className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-lg",
-                      recording ? "bg-red-100" : "bg-zinc-200 dark:bg-zinc-700",
+                      recording
+                        ? "bg-red-100"
+                        : uploading
+                          ? "bg-violet-100"
+                          : "bg-zinc-200 dark:bg-zinc-700",
                     )}
                   >
-                    <Video
-                      className={cn(
-                        "h-4 w-4",
-                        recording ? "text-red-600" : "text-zinc-500",
-                      )}
-                    />
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-violet-600" />
+                    ) : (
+                      <Video
+                        className={cn(
+                          "h-4 w-4",
+                          recording ? "text-red-600" : "text-zinc-500",
+                        )}
+                      />
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium">
                       {recording
                         ? "Recording…"
-                        : isComplete
-                          ? "Recording finished"
-                          : "Standby"}
+                        : uploading
+                          ? "Uploading video…"
+                          : isComplete
+                            ? "Recording finished"
+                            : "Standby"}
                     </p>
                     <p className="text-[11px] text-zinc-500">
-                      Continuous serpentine sweep
+                      {uploading
+                        ? "Sending the recording to the dashboard"
+                        : "Continuous serpentine sweep"}
                     </p>
                   </div>
                 </div>
@@ -882,6 +909,12 @@ export default function LiveSession({
                   <span className="flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-red-100">
                     <Radio size={10} className="animate-pulse" />
                     REC
+                  </span>
+                )}
+                {uploading && (
+                  <span className="flex items-center gap-1.5 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-semibold text-violet-100">
+                    <Loader2 size={10} className="animate-spin" />
+                    UPLOADING
                   </span>
                 )}
               </div>
@@ -933,7 +966,22 @@ export default function LiveSession({
                 </div>
               )}
 
-              {isComplete && !videoUrl && (
+              {/* Upload in progress — the sweep is done and the RPi is pushing
+                  the file to the dashboard. Can be slow for a large recording. */}
+              {uploading && !videoUrl && (
+                <div className="bg-muted flex flex-col items-center gap-2 rounded-xl py-4">
+                  <Loader2 size={20} className="animate-spin text-violet-500" />
+                  <p className="text-[11px] font-medium text-zinc-500">
+                    Uploading video
+                    {uploadSizeMb > 0 ? ` (${uploadSizeMb.toFixed(1)} MB)` : ""}…
+                  </p>
+                  <p className="text-[10px] text-zinc-500">
+                    This can take a while on a slow link — keep this tab open.
+                  </p>
+                </div>
+              )}
+
+              {isComplete && !videoUrl && !uploading && (
                 <p className="py-2 text-center text-[11px] text-zinc-500">
                   Processing video…
                 </p>
