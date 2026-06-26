@@ -48,7 +48,7 @@ function LabeledImage({
       <span className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
         {label}
       </span>
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md bg-zinc-700">
+      <div className="relative aspect-4/3 w-full overflow-hidden rounded-md bg-zinc-700">
         {url ? (
           <Image
             src={url}
@@ -88,7 +88,7 @@ export function CaptureDetailDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <div className="flex items-center justify-between gap-2 pr-6">
             <DialogTitle>Plant #{plantLabel}</DialogTitle>
@@ -110,7 +110,7 @@ export function CaptureDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <LabeledImage
             label="YOLO"
             url={capture.annotatedImageUrl}

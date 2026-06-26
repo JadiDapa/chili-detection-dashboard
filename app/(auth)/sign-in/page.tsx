@@ -1,6 +1,7 @@
 import AuthCarousel from "@/components/auth/AuthCarousel";
 import SignInForm from "@/components/auth/sign-in/SignInForm";
 import AuthHeader from "@/components/auth/AuthHeader";
+import RedirectIfSignedIn from "@/components/auth/RedirectIfSignedIn";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
@@ -12,6 +13,7 @@ export default async function SignInPage() {
 
   return (
     <section className="flex min-h-screen overflow-hidden">
+      <RedirectIfSignedIn />
       <AuthCarousel />
 
       <main className="bg-card flex w-full flex-col items-center justify-center p-8 shadow-xl lg:w-[45%] lg:rounded-e-4xl lg:px-40">
