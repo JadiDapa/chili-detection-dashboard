@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 export default function PlantsPage() {
   return (
-    <main className="min-h-screen w-full gap-3 overflow-hidden pt-2">
+    <main className="min-h-full w-full gap-3 pt-2">
       <div className="flex w-full items-center justify-between gap-3">
         <PageHeader
           title="All Plants"
@@ -31,10 +31,13 @@ export default function PlantsPage() {
             <RadialChart />
           </div>
         </div>
-        <div className="hidden min-h-screen w-px bg-slate-300 lg:block"></div>
+        <div className="hidden min-h-full w-px bg-slate-300 lg:block"></div>
         {/* Right Side — real planter beds from the DB */}
         <div className="space-y-3 lg:flex-2">
           <PlanterBedList />
+ turning: 33, ripe: 34, broken: 4 }}
+            link="/plants/planter-bed-03"
+          />
         </div>
       </div>
     </main>

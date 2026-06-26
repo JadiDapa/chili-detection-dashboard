@@ -410,7 +410,7 @@ export default function ESP32Console() {
   const lTriggered = (v: number | undefined) => v === 0;
 
   return (
-    <div className="bg-background min-h-screen p-6">
+    <div className="bg-background min-h-full p-6">
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Top bar */}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

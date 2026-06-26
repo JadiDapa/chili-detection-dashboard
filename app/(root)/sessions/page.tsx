@@ -22,7 +22,7 @@ export default async function SessionsPage({ searchParams }: PageProps) {
   const sessions = await SessionService.list();
 
   return (
-    <main className="min-h-screen w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6">
+    <main className="min-h-full w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6">
       <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <PageHeader
           title="Session List"

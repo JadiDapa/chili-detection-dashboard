@@ -11,7 +11,7 @@ export default async function Dataset({ params }: { params: { id: string } }) {
   const dataset = await DatasetService.getById(Number(id));
 
   return (
-    <main className="min-h-screen w-full gap-4">
+    <main className="min-h-full w-full gap-4">
       {/* Header */}
 
       <div className="mt-6 flex w-full flex-col gap-4 px-3 lg:flex-row lg:px-0">
@@ -32,7 +32,7 @@ export default async function Dataset({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        <div className="bg-card text-foreground flex min-h-screen w-full flex-col rounded-xl px-3 lg:flex-3">
+        <div className="bg-card text-foreground flex min-h-full w-full flex-col rounded-xl px-3 lg:flex-3">
           <div className="flex items-center justify-between px-1 pt-5 pb-3">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">

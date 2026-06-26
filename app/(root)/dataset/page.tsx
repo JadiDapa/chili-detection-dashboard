@@ -14,7 +14,7 @@ export default async function DatasetCollection() {
   const dataset = await DatasetService.getAll(true);
 
   return (
-    <main className="min-h-screen w-full gap-4 pt-4">
+    <main className="min-h-full w-full gap-4 pt-4">
       {/* Header */}
       <div className="flex w-full items-center justify-between">
         <PageHeader

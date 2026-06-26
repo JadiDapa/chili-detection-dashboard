@@ -36,7 +36,7 @@ export default async function SchedulePage() {
   }));
 
   return (
-    <main className="min-h-screen w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6 dark:bg-transparent">
+    <main className="min-h-full w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6 dark:bg-transparent">
       <PageHeader
         title="Schedule"
         subtitle="Plan recurring watering and scanning sessions. The gantry runs these automatically — no need to keep this page open."

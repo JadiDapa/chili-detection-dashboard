@@ -22,14 +22,14 @@ export default async function DashboardPage({
 
   if (!session) {
     return (
-      <main className="min-h-screen w-full space-y-8 overflow-hidden border bg-white p-4 md:rounded-2xl lg:p-6">
+      <main className="min-h-full w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6">
         <PageHeader title="Session Not Found" subtitle="Session not found" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen w-full space-y-8 overflow-hidden border bg-white p-4 md:rounded-2xl lg:p-6">
+    <main className="min-h-full w-full space-y-8 border bg-white p-4 md:rounded-2xl lg:p-6">
       {/* PAGE HEADER */}
       <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
         <PageHeader

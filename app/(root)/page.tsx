@@ -11,7 +11,7 @@ import { piApi } from "@/lib/pi";
 // ─── page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen w-full overflow-hidden pt-2">
+    <main className="min-h-full w-full pt-2">
       <div className="flex flex-col gap-2 lg:flex-row">
         {/* ════ LEFT COLUMN ════ */}
         <div className="flex flex-col gap-2 lg:flex-2">

@@ -21,7 +21,7 @@ export default async function PlantSections({
   const defaultConfig = await ScanConfigService.getDefault();
 
   return (
-    <main className="flex min-h-screen w-full flex-col gap-3 overflow-hidden py-2 lg:flex-row lg:pe-3">
+    <main className="flex min-h-full w-full flex-col gap-3 py-2 lg:flex-row lg:pe-3">
       <div className="min-w-0 px-3 lg:flex-5">
         <div className="flex items-center justify-between gap-3">
           <PageHeader
