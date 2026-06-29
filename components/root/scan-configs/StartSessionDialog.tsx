@@ -119,6 +119,7 @@ type CreateForm = {
   startYMm: string;
   roiWPct: string;
   roiHPct: string;
+  scanZMm: string;
   captureOffsets: OffsetRow[];
   zMaxMm: string;
   zWaterMm: string;
@@ -141,6 +142,7 @@ const EMPTY_FORM: CreateForm = {
   startYMm: "0",
   roiWPct: "100",
   roiHPct: "100",
+  scanZMm: "50",
   captureOffsets: [],
   zMaxMm: "0",
   zWaterMm: "50",
@@ -168,6 +170,9 @@ function configToForm(config: AnyConfigSummary): CreateForm {
     startYMm: String(config.startYMm),
     roiWPct: scan ? String((config as ScanConfigSummary).roiWPct ?? 100) : "100",
     roiHPct: scan ? String((config as ScanConfigSummary).roiHPct ?? 100) : "100",
+    scanZMm: scan
+      ? String((config as ScanConfigSummary).captureOffsets?.[0]?.z_mm ?? 50)
+      : "50",
     captureOffsets: scan
       ? ((config as ScanConfigSummary).captureOffsets ?? []).map((o) => ({
           ...o,
@@ -223,11 +228,25 @@ function buildConfigBody(
       speedMmSec: parseFloat(form.speedMmSec) || 100,
     };
   }
+  // Advanced per-shot offsets take over when present; otherwise synthesize a
+  // single offset from the simple Capture Z so every scan has a defined height.
+  const captureOffsets =
+    form.captureOffsets.length > 0
+      ? form.captureOffsets.map(({ _key: _, ...rest }) => rest)
+      : [
+          {
+            z_mm: parseFloat(form.scanZMm) || 50,
+            x_offset_mm: 0,
+            y_offset_mm: 0,
+            servo_pan: 90,
+            servo_tilt: 90,
+          },
+        ];
   return {
     ...shared,
     roiWPct: parseFloat(form.roiWPct) || 100,
     roiHPct: parseFloat(form.roiHPct) || 100,
-    captureOffsets: form.captureOffsets.map(({ _key: _, ...rest }) => rest),
+    captureOffsets,
   };
 }
 
@@ -683,6 +702,10 @@ function SelectStep({
                     ) : (
                       <>
                         <Detail
+                          label="Capture Z"
+                          value={`${(config as ScanConfigSummary).captureOffsets?.[0]?.z_mm ?? 50} mm`}
+                        />
+                        <Detail
                           label="Capture offsets"
                           value={`${((config as ScanConfigSummary).captureOffsets as unknown[])?.length ?? 0} shot(s)`}
                         />
@@ -824,6 +847,24 @@ function CreateStep({
             </div>
           </section>
 
+          {/* SCAN: capture height */}
+          {sessionType === "SCAN" && (
+            <section>
+              <SectionLabel>Capture Height</SectionLabel>
+              <div className="grid grid-cols-2 gap-3">
+                <NumField
+                  label="Capture Z (mm)"
+                  value={form.scanZMm}
+                  onChange={(v) => onField("scanZMm", v)}
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] italic text-zinc-500">
+                Z height the camera is lowered to at each plant. Used unless you
+                add per-shot Capture Offsets below (each offset sets its own Z).
+              </p>
+            </section>
+          )}
+
           {/* SCAN: counting region (ROI) */}
           {sessionType === "SCAN" && (
             <section>
@@ -885,7 +926,8 @@ function CreateStep({
 
               {form.captureOffsets.length === 0 ? (
                 <p className="text-[11px] italic text-zinc-500">
-                  No offsets — RPi will use built-in defaults.
+                  No offsets — each plant is captured once at the Capture Z
+                  above. Add offsets only for multi-shot or servo aiming.
                 </p>
               ) : (
                 <div className="space-y-1.5">
