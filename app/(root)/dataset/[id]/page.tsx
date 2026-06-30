@@ -3,6 +3,7 @@ import CaptureCard from "@/components/root/datasets/CapturedData";
 import DownlaodDataset from "@/components/root/datasets/DownlaodDataset";
 import PageHeader from "@/components/root/PageHeader";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import { DatasetService } from "@/server/services/dataset.service";
 import { AlignJustify } from "lucide-react";
 
@@ -22,7 +23,9 @@ export default async function Dataset({ params }: { params: { id: string } }) {
               subtitle="Detail sesi dataset dan data capture yang telah dikumpulkan."
             />
           </div>
-          <div className="relative aspect-video overflow-hidden rounded-xl">
+          <div
+            className={`relative ${CAMERA_ASPECT_CLASS} overflow-hidden rounded-xl`}
+          >
             <PlantsCam
               label="Main Webcam"
               streamUrl="http://100.127.114.61:8000/camera/stream"

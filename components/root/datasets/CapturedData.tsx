@@ -7,6 +7,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { deleteCapture } from "@/app/actions/dataset.action";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 
 export default function CaptureCard({ cap }: { cap: DatasetCaptures }) {
   const [isPending, startTransition] = useTransition();
@@ -32,7 +33,9 @@ export default function CaptureCard({ cap }: { cap: DatasetCaptures }) {
   return (
     <div className="group bg-muted relative flex w-full overflow-hidden rounded-lg">
       {/* Image */}
-      <div className="relative w-full overflow-hidden bg-zinc-700">
+      <div
+        className={`relative ${CAMERA_ASPECT_CLASS} w-full overflow-hidden bg-zinc-700`}
+      >
         {/* eslint-disable @next/next/no-img-element */}
         <img
           src={cap.imageUrl}

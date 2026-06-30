@@ -1,6 +1,7 @@
 import PageHeader from "@/components/root/PageHeader";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
 import { piApi } from "@/lib/pi";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import { ScanConfigService } from "@/server/services/scan-config.service";
 import ScanningResultChart from "@/components/root/plants/section/ScanningResultChart";
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
@@ -37,8 +38,11 @@ export default async function PlantSections({
         </div>
 
         <div className="mt-4">
-          {/* Live Cam */}
-          <div className="relative min-h-60 overflow-hidden rounded-xl bg-zinc-900 sm:min-h-120">
+          {/* Live Cam — locked to the camera 4:3 ratio so the ROI overlay maps
+              1:1 to the RPi ROI (see lib/camera.ts). */}
+          <div
+            className={`relative ${CAMERA_ASPECT_CLASS} w-full overflow-hidden rounded-xl bg-zinc-900`}
+          >
             <PlantsCam
               label={`Planter Bed ${section}`}
               streamUrl={piApi.streamUrl()}

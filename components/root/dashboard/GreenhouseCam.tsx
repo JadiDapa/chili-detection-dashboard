@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import {
   Camera,
   CameraOff,
@@ -64,7 +65,7 @@ export function GreenhouseCam({
   const content = (
     <div
       className={`relative overflow-hidden rounded-xl bg-green-800 ${
-        fullscreen ? "fixed inset-4 z-50 shadow-2xl" : "h-120 w-full"
+        fullscreen ? "fixed inset-4 z-50 shadow-2xl" : `${CAMERA_ASPECT_CLASS} w-full`
       }`}
     >
       {/* ── Stream ── */}

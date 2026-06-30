@@ -36,9 +36,10 @@ export function usePlantsOverview() {
   });
 }
 
-// Live ambient readings straight from the RPi (standalone ESP32). The RPi
-// serves stub values while that board is offline; the query simply errors if
-// the Pi is unreachable, letting cards show a fallback.
+// Live ambient readings straight from the RPi (standalone ESP32). With stub
+// mode on (default), piApi substitutes constant "normal" readings when the Pi
+// or its sensor board returns nothing, so cards show a plausible state instead
+// of erroring. Disable via NEXT_PUBLIC_SENSOR_STUB="false".
 export function useAmbient() {
   return useQuery({
     queryKey: ["dashboard", "ambient"],

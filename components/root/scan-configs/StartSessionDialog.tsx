@@ -13,10 +13,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn, uid } from "@/lib/utils";
 import { ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
 import { piApi } from "@/lib/pi";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,7 +177,7 @@ function configToForm(config: AnyConfigSummary): CreateForm {
     captureOffsets: scan
       ? ((config as ScanConfigSummary).captureOffsets ?? []).map((o) => ({
           ...o,
-          _key: crypto.randomUUID(),
+          _key: uid(),
         }))
       : [],
     zMaxMm: watering ? String((config as WateringConfigSummary).zMaxMm) : "0",
@@ -357,7 +358,7 @@ export default function StartSessionDialog({
       captureOffsets: [
         ...f.captureOffsets,
         {
-          _key: crypto.randomUUID(),
+          _key: uid(),
           z_mm: 0,
           x_offset_mm: 0,
           y_offset_mm: 0,
@@ -874,8 +875,11 @@ function CreateStep({
                   (% of frame, centered)
                 </span>
               </SectionLabel>
-              {/* Live preview — tune the box against the actual feed */}
-              <div className="relative mb-3 aspect-video w-full overflow-hidden rounded-lg bg-zinc-900">
+              {/* Live preview — tune the box against the actual feed. Locked to
+                  the camera 4:3 ratio so the ROI box matches the real ROI. */}
+              <div
+                className={`relative mb-3 ${CAMERA_ASPECT_CLASS} w-full overflow-hidden rounded-lg bg-zinc-900`}
+              >
                 <PlantsCam
                   label="ROI preview"
                   streamUrl={piApi.streamUrl()}

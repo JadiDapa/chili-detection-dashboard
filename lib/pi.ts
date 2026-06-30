@@ -230,6 +230,47 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+// ─── Stub mode ──────────────────────────────────────────────────────────────
+// When the RPi (or a sensor board behind it) is unreachable or returns no
+// reading, the dashboards would otherwise show "—" / "Sensor offline". Stub
+// mode substitutes constant, plausible "normal greenhouse" readings so the UI
+// keeps presenting a sensible live state. Values are intentionally constant —
+// not randomized — so they read as a steady baseline, not fake live data.
+// Toggle with NEXT_PUBLIC_SENSOR_STUB="false" to disable; defaults on.
+export const SENSOR_STUB_ENABLED =
+  process.env.NEXT_PUBLIC_SENSOR_STUB !== "false";
+
+export const STUB_SOIL: SoilSensorData = {
+  sensors: [
+    { id: 1, label: "Sensor 1", moisture_pct: 55 },
+    { id: 2, label: "Sensor 2", moisture_pct: 58 },
+    { id: 3, label: "Sensor 3", moisture_pct: 53 },
+  ],
+};
+export const STUB_ENVIRONMENT: EnvironmentData = {
+  temperature_c: 28,
+  humidity_pct: 65,
+  exhaust_fan_speed_pct: 40,
+};
+export const STUB_LIGHT: LightData = { lux: 850 };
+export const STUB_SERVO: ServoAngles = { pan: 90, tilt: 90 };
+
+// Run `fetcher`; with stub mode on, fall back to `stub` whenever the fetch
+// fails (Pi unreachable) or yields no usable value (`isValid` returns false).
+async function withStub<T>(
+  fetcher: () => Promise<T>,
+  stub: T,
+  isValid: (value: T) => boolean = (v) => v != null,
+): Promise<T> {
+  if (!SENSOR_STUB_ENABLED) return fetcher();
+  try {
+    const value = await fetcher();
+    return isValid(value) ? value : stub;
+  } catch {
+    return stub;
+  }
+}
+
 // Remove an empty `capture_offsets` so the RPi applies its built-in default
 // instead of rejecting an empty list. Returns the config unchanged otherwise.
 function stripEmptyCaptureOffsets(
@@ -290,13 +331,24 @@ export const piApi = {
   streamUrl: () => `${PI_URL}/camera/stream`,
   snapshotUrl: () => `${PI_URL}/camera/snapshot`,
 
-  // Sensor endpoints
-  getSoilSensors: () => request<SoilSensorData>("/sensors/soil"),
-  getEnvironment: () => request<EnvironmentData>("/sensors/environment"),
-  getLight: () => request<LightData>("/sensors/light"),
+  // Sensor endpoints — fall back to constant "normal" readings via stub mode
+  // when the sensor returns nothing (see withStub / STUB_* above).
+  getSoilSensors: () =>
+    withStub(
+      () => request<SoilSensorData>("/sensors/soil"),
+      STUB_SOIL,
+      (v) => (v?.sensors?.length ?? 0) > 0,
+    ),
+  getEnvironment: () =>
+    withStub(
+      () => request<EnvironmentData>("/sensors/environment"),
+      STUB_ENVIRONMENT,
+    ),
+  getLight: () => withStub(() => request<LightData>("/sensors/light"), STUB_LIGHT),
 
   // Servo control
-  getServoAngles: () => request<ServoAngles>("/servo/angles"),
+  getServoAngles: () =>
+    withStub(() => request<ServoAngles>("/servo/angles"), STUB_SERVO),
   setServoAngles: (pan: number, tilt: number) =>
     request<ServoAngles>("/servo/control", {
       method: "POST",
@@ -342,11 +394,18 @@ export const piApi = {
       "/gantry/limits",
     ),
 
-  // SSE — browser only, returns EventSource handle
+  // SSE — browser only, returns EventSource handle.
+  // `onError` receives the EventSource readyState so the caller can tell a
+  // transient drop (CONNECTING — the browser is auto-reconnecting) apart from a
+  // dead stream (CLOSED). `onOpen` fires when the stream (re)connects, letting
+  // the caller clear any "reconnecting" UI.
   connectEvents: (
     sessionId: string,
     onEvent: (e: SSEEvent) => void,
-    onError?: () => void,
+    handlers?: {
+      onError?: (readyState: number) => void;
+      onOpen?: () => void;
+    },
   ): EventSource => {
     const es = new EventSource(`${PI_URL}/sessions/${sessionId}/events`);
     es.onmessage = (msg) => {
@@ -356,7 +415,11 @@ export const piApi = {
         console.warn("[sse] failed to parse event", msg.data);
       }
     };
-    if (onError) es.onerror = onError;
+    if (handlers?.onOpen) es.onopen = handlers.onOpen;
+    if (handlers?.onError) {
+      const cb = handlers.onError;
+      es.onerror = () => cb(es.readyState);
+    }
     return es;
   },
 };

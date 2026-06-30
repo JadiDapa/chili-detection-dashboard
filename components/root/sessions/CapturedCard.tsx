@@ -1,4 +1,5 @@
 import { CaptureType } from "@/lib/types/capture";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import Image from "next/image";
 
 export default function CapturedCard({
@@ -11,7 +12,9 @@ export default function CapturedCard({
   return (
     <div className="group bg-card rounded-xl border transition hover:shadow-md">
       {/* IMAGE */}
-      <div className="relative aspect-video overflow-hidden rounded-t-xl">
+      <div
+        className={`relative ${CAMERA_ASPECT_CLASS} overflow-hidden rounded-t-xl`}
+      >
         <Image
           unoptimized
           src={capture.imageUrl}

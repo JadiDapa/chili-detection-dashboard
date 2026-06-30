@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 
 type FruitClass = "Ripe" | "Unripe" | "Turning" | "Broken";
 
@@ -48,7 +49,9 @@ function LabeledImage({
       <span className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
         {label}
       </span>
-      <div className="relative aspect-4/3 w-full overflow-hidden rounded-md bg-zinc-700">
+      <div
+        className={`relative ${CAMERA_ASPECT_CLASS} w-full overflow-hidden rounded-md bg-zinc-700`}
+      >
         {url ? (
           <Image
             src={url}

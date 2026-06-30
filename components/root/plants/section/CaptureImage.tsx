@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import { CrosshairOverlay } from "../CrosshairOverlay";
 
 /**
@@ -31,7 +32,12 @@ export function CaptureImage({
   const activeUrl = showAnnotated && hasAnnotated ? annotatedUrl : rawUrl;
 
   return (
-    <div className="relative h-44 w-56 shrink-0 overflow-hidden rounded-s-md bg-zinc-700">
+    <div
+      className={cn(
+        "relative h-44 shrink-0 overflow-hidden rounded-s-md bg-zinc-700",
+        CAMERA_ASPECT_CLASS,
+      )}
+    >
       <div className="absolute top-1 left-1 z-10 rounded-full bg-black/50 px-2 py-0.5">
         <p className="text-[10px] font-medium text-white">
           Plant #{String(plantId).padStart(2, "0")}

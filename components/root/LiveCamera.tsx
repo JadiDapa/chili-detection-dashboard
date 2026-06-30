@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
 import { startCameraStream, stopCameraStream } from "@/lib/networks/camera";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 
 export function LiveCamera() {
   const [cameraActive, setCameraActive] = useState(true);
@@ -31,7 +32,9 @@ export function LiveCamera() {
   return (
     <Card className="lg:col-span-7">
       <CardContent>
-        <div className="relative h-120 overflow-hidden rounded-xl border p-4 shadow">
+        <div
+          className={`relative ${CAMERA_ASPECT_CLASS} w-full overflow-hidden rounded-xl border p-4 shadow`}
+        >
           {cameraActive ? (
             <figure className="">
               <Image

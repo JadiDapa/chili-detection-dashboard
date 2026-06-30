@@ -229,6 +229,11 @@ export default function LiveSession({
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
+  // True while the live SSE stream has dropped but the session is still running
+  // — the browser is auto-reconnecting and/or we're polling the dashboard DB for
+  // the outcome. Lets the user leave the tab and come back without seeing a
+  // false "lost connection" error.
+  const [reconnecting, setReconnecting] = useState(false);
 
   // SCAN state
   const [scanCount, setScanCount] = useState(0);
@@ -258,7 +263,11 @@ export default function LiveSession({
   const [moistureAfter, setMoistureAfter] = useState<number[] | null>(null);
 
   const esRef = useRef<EventSource | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const capturesRef = useRef<LiveCapture[]>([]);
+  // Mirror of `phase` for use inside long-lived SSE callbacks, which would
+  // otherwise close over a stale `phase` from the render that opened the stream.
+  const phaseRef = useRef<Phase>(phase);
   const [startTime, setStartTime] = useState<string | null>(null);
 
   useEffect(() => {
@@ -266,76 +275,198 @@ export default function LiveSession({
   }, [captures]);
 
   useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  useEffect(() => {
     return () => {
       esRef.current?.close();
+      stopPolling();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reconnect to a session the RPi is already running: stream live events
   // without re-issuing a start. Seed the panels from data persisted so far so
   // prior plant cards / progress appear immediately, then SSE appends new ones.
+  // If the session has already finished (reopened "anytime" after the fact),
+  // seed and show its final state straight from the DB — no live stream needed.
   useEffect(() => {
-    if (status !== "RUNNING") return;
-    seedFromInitial();
-    connect();
-    setPhase("running");
-    setStartTime(
-      new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    );
+    if (status === "RUNNING") {
+      seedFromInitial();
+      connect();
+      setPhase("running");
+      setStartTime(
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      );
+    } else if (
+      status === "COMPLETED" ||
+      status === "STOPPED" ||
+      status === "ERROR"
+    ) {
+      seedFromInitial();
+      void pollSessionStatus();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Seed live state from already-persisted captures / watering stops.
   function seedFromInitial() {
     if (!isWatering && initialCaptures && initialCaptures.length > 0) {
-      const seeded: LiveCapture[] = initialCaptures
-        .slice()
-        .sort((a, b) => (a.plantIndex ?? 0) - (b.plantIndex ?? 0))
-        .map((c) => ({
-          plant_id: c.plantIndex ?? 0,
-          image_url: c.imageUrl || null,
-          annotated_url: c.annotatedImageUrl || null,
-          classes: {
-            Ripe: c.ripeCount,
-            Unripe: c.unripeCount,
-            Turning: c.turningCount,
-            Broken: c.brokenCount,
-          },
-          height_cm: c.heightCm,
-          moisture_pct: c.moisturePct,
-        }));
-      setCaptures(seeded);
-      setScanCount(seeded.length);
+      applyCaptureRows(initialCaptures);
     }
     if (isWatering && initialStops && initialStops.length > 0) {
-      setWateringStops(
-        initialStops
-          .slice()
-          .sort((a, b) => a.stopIndex - b.stopIndex)
-          .map((s) => ({
-            stop_index: s.stopIndex,
-            x_mm: s.xMm,
-            y_mm: s.yMm,
-            duration_sec: s.valveDurationSec,
-          })),
-      );
-      setScanCount(initialStops.length);
+      applyStopRows(initialStops);
     }
   }
 
+  // Map persisted capture/stop rows into the live view shapes. Shared by the
+  // initial seed and the DB-polling fallback so a reconnect shows the same data.
+  function applyCaptureRows(rows: CaptureRow[]) {
+    const mapped: LiveCapture[] = rows
+      .slice()
+      .sort((a, b) => (a.plantIndex ?? 0) - (b.plantIndex ?? 0))
+      .map((c) => ({
+        plant_id: c.plantIndex ?? 0,
+        image_url: c.imageUrl || null,
+        annotated_url: c.annotatedImageUrl || null,
+        classes: {
+          Ripe: c.ripeCount,
+          Unripe: c.unripeCount,
+          Turning: c.turningCount,
+          Broken: c.brokenCount,
+        },
+        height_cm: c.heightCm,
+        moisture_pct: c.moisturePct,
+      }));
+    setCaptures(mapped);
+    setScanCount(mapped.length);
+  }
+
+  function applyStopRows(rows: WateringStopRow[]) {
+    setWateringStops(
+      rows
+        .slice()
+        .sort((a, b) => a.stopIndex - b.stopIndex)
+        .map((s) => ({
+          stop_index: s.stopIndex,
+          x_mm: s.xMm,
+          y_mm: s.yMm,
+          duration_sec: s.valveDurationSec,
+        })),
+    );
+    setScanCount(rows.length);
+  }
+
   // Open the SSE stream for this session and route events into handleEvent.
+  //
+  // A dropped SSE stream is NOT treated as a session failure. The RPi keeps
+  // scanning and writes results to the dashboard DB regardless of whether the
+  // browser is connected, so when the live stream drops (tab backgrounded,
+  // laptop asleep, wifi blip, or the RPi event bus already torn down because the
+  // session finished while we were away) we fall back to polling the dashboard
+  // DB — the source of truth — for the real outcome.
   function connect() {
-    const es = piApi.connectEvents(sessionId, handleEvent, () => {
-      setPhase("error");
-      setError(`Lost connection to Pi. Check that it is online at ${PI_URL}.`);
+    const es = piApi.connectEvents(sessionId, handleEvent, {
+      onError: (readyState) => {
+        // The session may still be running on the RPi, so don't fail — show a
+        // calm "reconnecting" state and let DB polling settle the outcome. A
+        // real live event arriving later clears this (see handleEvent).
+        if (phaseRef.current !== "running") return;
+        setReconnecting(true);
+        startPolling();
+        if (readyState === EventSource.CLOSED) {
+          esRef.current?.close();
+        }
+      },
     });
     esRef.current = es;
   }
 
+  // Poll the dashboard DB for this session's authoritative status + data. Used
+  // only as a fallback when the live SSE stream can't tell us the outcome.
+  function startPolling() {
+    if (pollRef.current) return;
+    void pollSessionStatus();
+    pollRef.current = setInterval(() => void pollSessionStatus(), 4000);
+  }
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  async function pollSessionStatus() {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const dbStatus = String(data?.status ?? "").toUpperCase();
+      if (!dbStatus) return;
+
+      // Still going — refresh the panels with whatever has been persisted so far
+      // and keep waiting (the SSE stream may also recover on its own).
+      if (dbStatus === "RUNNING" || dbStatus === "PENDING") {
+        if (!isWatering && Array.isArray(data.captures))
+          applyCaptureRows(data.captures);
+        return;
+      }
+
+      // Terminal — refresh from persisted data, then settle the phase.
+      if (!isWatering && Array.isArray(data.captures))
+        applyCaptureRows(data.captures);
+      if (isWatering) await refreshWateringStops();
+      if (isDataset && data.videoUrl) setVideoUrl(data.videoUrl);
+
+      stopPolling();
+      esRef.current?.close();
+      setReconnecting(false);
+      setCurrentPlantId(null);
+      setGantryStatus(null);
+      setRecording(false);
+      setUploading(false);
+
+      if (dbStatus === "COMPLETED") {
+        setPhase("complete");
+      } else if (dbStatus === "STOPPED") {
+        setPhase("stopped");
+      } else {
+        setPhase("error");
+        setError(
+          "The session ended with an error on the device. Open its details to see what was captured.",
+        );
+      }
+    } catch {
+      // Network blip reaching the dashboard — keep polling.
+    }
+  }
+
+  async function refreshWateringStops() {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/watering-stops`);
+      if (!res.ok) return;
+      const stops = await res.json();
+      if (Array.isArray(stops)) applyStopRows(stops as WateringStopRow[]);
+    } catch {
+      // best-effort
+    }
+  }
+
   function handleEvent(event: SSEEvent) {
+    // Any event from the RPi means the live stream is alive — clear the
+    // reconnecting state and stop the DB-poll fallback. The lone exception is
+    // `session_reconnect`: the RPi's "I can't replay this session live, check
+    // the DB" signal (sent when the event bus is already gone), handled below.
+    if (event.type !== "session_reconnect") {
+      setReconnecting(false);
+      stopPolling();
+    }
+
     switch (event.type) {
       // ── SCAN events ────────────────────────────────────────────────────────
       case "gantry_moving":
@@ -422,6 +553,14 @@ export default function LiveSession({
         setUploadSizeMb(event.size_mb);
         break;
 
+      // ── Reconnect signal ───────────────────────────────────────────────────
+      // The RPi could not stream this session live (its event bus is gone —
+      // typically the session already ended while we were away). Fall back to
+      // the dashboard DB for the real outcome instead of showing an error.
+      case "session_reconnect":
+        startPolling();
+        break;
+
       // ── Shared terminal events ─────────────────────────────────────────────
       case "session_complete": {
         setPhase("complete");
@@ -450,6 +589,8 @@ export default function LiveSession({
 
   // ── Start ───────────────────────────────────────────────────────────────────
   async function handleStart() {
+    stopPolling();
+    setReconnecting(false);
     setPhase("creating");
     setError(null);
     setCurrentPlantId(null);
@@ -495,6 +636,8 @@ export default function LiveSession({
     if (!sessionId) return;
     try {
       esRef.current?.close();
+      stopPolling();
+      setReconnecting(false);
       await piApi.stopSession(sessionId);
       setPhase("stopped");
       setCurrentPlantId(null);
@@ -511,6 +654,8 @@ export default function LiveSession({
   // collected data becomes viewable in the detail view.
   async function handleForceReset() {
     esRef.current?.close();
+    stopPolling();
+    setReconnecting(false);
     try {
       await piApi.gantryStop();
     } catch {
@@ -606,10 +751,16 @@ export default function LiveSession({
             Starting…
           </span>
         )}
-        {phase === "running" && (
+        {phase === "running" && !reconnecting && (
           <span className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold text-emerald-100">
             <Radio size={10} className="animate-pulse" />
             Live
+          </span>
+        )}
+        {phase === "running" && reconnecting && (
+          <span className="flex items-center gap-1.5 rounded-full bg-amber-600 px-2.5 py-1 text-[10px] font-semibold text-amber-100">
+            <Loader2 size={10} className="animate-spin" />
+            Reconnecting…
           </span>
         )}
         {phase === "complete" && (
@@ -630,6 +781,21 @@ export default function LiveSession({
           </span>
         )}
       </div>
+
+      {/* Reconnecting banner — the session keeps running on the device; the
+          live view is just catching back up, so it's safe to leave the page. */}
+      {reconnecting && phase === "running" && (
+        <div className="mt-3 space-y-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-500">
+            <Loader2 size={11} className="animate-spin" />
+            Reconnecting to live view
+          </p>
+          <p className="text-[11px] text-amber-500/80">
+            The session is still running on the device and your results are being
+            saved. You can leave this page and come back anytime.
+          </p>
+        </div>
+      )}
 
       {/* Error banner */}
       {error && (

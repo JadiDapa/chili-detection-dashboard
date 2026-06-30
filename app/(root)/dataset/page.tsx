@@ -1,5 +1,6 @@
 import PageHeader from "@/components/root/PageHeader";
 import { DatasetService } from "@/server/services/dataset.service";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +49,9 @@ function DatasetCard({ dataset }: { dataset: DatasetType }) {
       {" "}
       <Card className="group gap-0 overflow-hidden rounded-2xl border p-0 shadow-none transition hover:shadow-lg">
         {/* Thumbnail */}
-        <div className="bg-muted relative flex h-40 w-full items-center justify-center">
+        <div
+          className={`bg-muted relative flex ${CAMERA_ASPECT_CLASS} w-full items-center justify-center overflow-hidden`}
+        >
           {captureCount > 0 && (
             /* eslint-disable @next/next/no-img-element */
 

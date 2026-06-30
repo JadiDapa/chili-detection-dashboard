@@ -1,5 +1,6 @@
 import { Droplets, Sparkles } from "lucide-react";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import { StatusBadge } from "@/components/root/plants/StatusBadge";
 import Link from "next/link";
 
@@ -59,7 +60,7 @@ export function PlanterBedCard({
       className="bg-card flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-none shadow-none transition hover:-translate-y-1 hover:scale-[100.5%] hover:brightness-90 sm:flex-row"
     >
       {/* Camera */}
-      <div className="relative min-h-50 bg-zinc-900 sm:flex-3">
+      <div className={`relative ${CAMERA_ASPECT_CLASS} bg-zinc-900 sm:flex-3`}>
         <PlantsCam label={label} streamUrl={streamUrl} />
       </div>
 
