@@ -1,16 +1,11 @@
 import { Prisma, SessionStatus } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import type { BedGrid } from "@/server/services/scan-config.service";
 
 export type WateringConfigData = {
   name: string;
   description?: string | null;
   isDefault?: boolean;
-  cols?: number;
-  rows?: number;
-  gapXMm?: number;
-  gapYMm?: number;
-  startXMm?: number;
-  startYMm?: number;
   zMaxMm?: number;
   zWaterMm?: number;
   tofSamples?: number;
@@ -55,12 +50,6 @@ export const WateringService = {
         name: data.name,
         description: data.description ?? null,
         isDefault: data.isDefault ?? false,
-        cols: data.cols ?? 8,
-        rows: data.rows ?? 2,
-        gapXMm: data.gapXMm ?? 750.0,
-        gapYMm: data.gapYMm ?? 1000.0,
-        startXMm: data.startXMm ?? 0.0,
-        startYMm: data.startYMm ?? 0.0,
         zMaxMm: data.zMaxMm ?? 0.0,
         zWaterMm: data.zWaterMm ?? 50.0,
         tofSamples: data.tofSamples ?? 5,
@@ -77,12 +66,6 @@ export const WateringService = {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
-        ...(data.cols !== undefined && { cols: data.cols }),
-        ...(data.rows !== undefined && { rows: data.rows }),
-        ...(data.gapXMm !== undefined && { gapXMm: data.gapXMm }),
-        ...(data.gapYMm !== undefined && { gapYMm: data.gapYMm }),
-        ...(data.startXMm !== undefined && { startXMm: data.startXMm }),
-        ...(data.startYMm !== undefined && { startYMm: data.startYMm }),
         ...(data.zMaxMm !== undefined && { zMaxMm: data.zMaxMm }),
         ...(data.zWaterMm !== undefined && { zWaterMm: data.zWaterMm }),
         ...(data.tofSamples !== undefined && { tofSamples: data.tofSamples }),
@@ -103,26 +86,23 @@ export const WateringService = {
     });
   },
 
-  buildSnapshot(config: {
-    cols: number;
-    rows: number;
-    gapXMm: number;
-    gapYMm: number;
-    startXMm: number;
-    startYMm: number;
-    zMaxMm: number;
-    zWaterMm: number;
-    tofSamples: number;
-    sweepSpeedMmSec: number;
-    waterSpeedMmSec: number;
-  }): Prisma.InputJsonValue {
+  buildSnapshot(
+    config: {
+      zMaxMm: number;
+      zWaterMm: number;
+      tofSamples: number;
+      sweepSpeedMmSec: number;
+      waterSpeedMmSec: number;
+    },
+    grid: BedGrid,
+  ): Prisma.InputJsonValue {
     return {
-      cols: config.cols,
-      rows: config.rows,
-      gap_x_mm: config.gapXMm,
-      gap_y_mm: config.gapYMm,
-      start_x_mm: config.startXMm,
-      start_y_mm: config.startYMm,
+      cols: grid.cols,
+      rows: grid.rows,
+      gap_x_mm: grid.gapXMm,
+      gap_y_mm: grid.gapYMm,
+      start_x_mm: grid.startXMm,
+      start_y_mm: grid.startYMm,
       z_max_mm: config.zMaxMm,
       z_water_mm: config.zWaterMm,
       tof_samples: config.tofSamples,

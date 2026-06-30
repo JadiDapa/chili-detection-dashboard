@@ -1,6 +1,18 @@
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
+// Grid layout now lives on the Bed (single source of truth). Session configs no
+// longer carry it; the snapshot merges it in at session-start. This is the shape
+// buildSnapshot pulls from the bed for the RPi-compatible snapshot.
+export type BedGrid = {
+  cols: number;
+  rows: number;
+  gapXMm: number;
+  gapYMm: number;
+  startXMm: number;
+  startYMm: number;
+};
+
 export type CaptureOffsetData = {
   z_mm: number;
   x_offset_mm: number;
@@ -13,12 +25,6 @@ export type ScanConfigData = {
   name: string;
   description?: string | null;
   isDefault?: boolean;
-  cols?: number;
-  rows?: number;
-  gapXMm?: number;
-  gapYMm?: number;
-  startXMm?: number;
-  startYMm?: number;
   roiWPct?: number;
   roiHPct?: number;
   captureOffsets: CaptureOffsetData[];
@@ -45,12 +51,6 @@ export const ScanConfigService = {
         name: data.name,
         description: data.description ?? null,
         isDefault: data.isDefault ?? false,
-        cols: data.cols ?? 8,
-        rows: data.rows ?? 2,
-        gapXMm: data.gapXMm ?? 750.0,
-        gapYMm: data.gapYMm ?? 1000.0,
-        startXMm: data.startXMm ?? 0.0,
-        startYMm: data.startYMm ?? 0.0,
         roiWPct: data.roiWPct ?? 100.0,
         roiHPct: data.roiHPct ?? 100.0,
         captureOffsets: data.captureOffsets as Prisma.InputJsonValue,
@@ -65,12 +65,6 @@ export const ScanConfigService = {
         ...(data.name !== undefined && { name: data.name }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
-        ...(data.cols !== undefined && { cols: data.cols }),
-        ...(data.rows !== undefined && { rows: data.rows }),
-        ...(data.gapXMm !== undefined && { gapXMm: data.gapXMm }),
-        ...(data.gapYMm !== undefined && { gapYMm: data.gapYMm }),
-        ...(data.startXMm !== undefined && { startXMm: data.startXMm }),
-        ...(data.startYMm !== undefined && { startYMm: data.startYMm }),
         ...(data.roiWPct !== undefined && { roiWPct: data.roiWPct }),
         ...(data.roiHPct !== undefined && { roiHPct: data.roiHPct }),
         ...(data.captureOffsets !== undefined && {
@@ -91,26 +85,24 @@ export const ScanConfigService = {
     });
   },
 
-  // Build the RPi-compatible snapshot object from a DB record.
-  // Uses snake_case field names to match the RPi Pydantic ScanConfig model.
-  buildSnapshot(config: {
-    cols: number;
-    rows: number;
-    gapXMm: number;
-    gapYMm: number;
-    startXMm: number;
-    startYMm: number;
-    roiWPct: number;
-    roiHPct: number;
-    captureOffsets: Prisma.JsonValue;
-  }): Prisma.InputJsonValue {
+  // Build the RPi-compatible snapshot object from a DB record. Grid fields are
+  // merged from the bed (single source of truth) so the RPi snapshot shape is
+  // unchanged. Uses snake_case to match the RPi Pydantic ScanConfig model.
+  buildSnapshot(
+    config: {
+      roiWPct: number;
+      roiHPct: number;
+      captureOffsets: Prisma.JsonValue;
+    },
+    grid: BedGrid,
+  ): Prisma.InputJsonValue {
     return {
-      cols: config.cols,
-      rows: config.rows,
-      gap_x_mm: config.gapXMm,
-      gap_y_mm: config.gapYMm,
-      start_x_mm: config.startXMm,
-      start_y_mm: config.startYMm,
+      cols: grid.cols,
+      rows: grid.rows,
+      gap_x_mm: grid.gapXMm,
+      gap_y_mm: grid.gapYMm,
+      start_x_mm: grid.startXMm,
+      start_y_mm: grid.startYMm,
       roi_w_pct: config.roiWPct,
       roi_h_pct: config.roiHPct,
       capture_offsets: config.captureOffsets,

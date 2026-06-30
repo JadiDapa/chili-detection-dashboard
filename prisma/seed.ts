@@ -14,8 +14,8 @@ const PI_URL =
 // 2×8 grid, 750 mm column spacing, 1000 mm row spacing
 const ROWS = 2;
 const COLS = 8;
-const GAP_X_MM = 750;
-const GAP_Y_MM = 1000;
+const GAP_X_MM = 650;
+const GAP_Y_MM = 700;
 
 async function main() {
   // ── User ───────────────────────────────────────────────────────────────────
@@ -38,18 +38,11 @@ async function main() {
     const defaultConfig = await prisma.scanConfig.create({
       data: {
         name: "Default",
-        description:
-          "Default 2×8 grid — 750mm column spacing, 1000mm row spacing",
+        description: "Default scan — single capture, whole-frame counting",
         isDefault: true,
-        cols: COLS,
-        rows: ROWS,
-        gapXMm: GAP_X_MM,
-        gapYMm: GAP_Y_MM,
-        startXMm: 0.0,
-        startYMm: 0.0,
         captureOffsets: [
           {
-            z_mm: 50.0,
+            z_mm: 0.0,
             x_offset_mm: 0.0,
             y_offset_mm: 0.0,
             servo_pan: 90.0,
@@ -75,6 +68,10 @@ async function main() {
       piUrl: PI_URL,
       rows: ROWS,
       cols: COLS,
+      gapXMm: GAP_X_MM,
+      gapYMm: GAP_Y_MM,
+      startXMm: 140,
+      startYMm: 280,
     },
   });
   console.log({ bed });

@@ -34,12 +34,6 @@ export interface ScanConfigSummary {
   name: string;
   description: string | null;
   isDefault: boolean;
-  cols: number;
-  rows: number;
-  gapXMm: number;
-  gapYMm: number;
-  startXMm: number;
-  startYMm: number;
   roiWPct: number;
   roiHPct: number;
   captureOffsets: CaptureOffsetData[];
@@ -50,12 +44,6 @@ export interface WateringConfigSummary {
   name: string;
   description: string | null;
   isDefault: boolean;
-  cols: number;
-  rows: number;
-  gapXMm: number;
-  gapYMm: number;
-  startXMm: number;
-  startYMm: number;
   zMaxMm: number;
   zWaterMm: number;
   tofSamples: number;
@@ -68,12 +56,6 @@ export interface DatasetConfigSummary {
   name: string;
   description: string | null;
   isDefault: boolean;
-  cols: number;
-  rows: number;
-  gapXMm: number;
-  gapYMm: number;
-  startXMm: number;
-  startYMm: number;
   zMm: number;
   speedMmSec: number;
 }
@@ -112,12 +94,6 @@ type OffsetRow = CaptureOffsetData & { _key: string };
 type CreateForm = {
   name: string;
   description: string;
-  cols: string;
-  rows: string;
-  gapXMm: string;
-  gapYMm: string;
-  startXMm: string;
-  startYMm: string;
   roiWPct: string;
   roiHPct: string;
   scanZMm: string;
@@ -135,12 +111,6 @@ type CreateForm = {
 const EMPTY_FORM: CreateForm = {
   name: "",
   description: "",
-  cols: "8",
-  rows: "2",
-  gapXMm: "750",
-  gapYMm: "1000",
-  startXMm: "0",
-  startYMm: "0",
   roiWPct: "100",
   roiHPct: "100",
   scanZMm: "50",
@@ -163,12 +133,6 @@ function configToForm(config: AnyConfigSummary): CreateForm {
   return {
     name: config.name,
     description: config.description ?? "",
-    cols: String(config.cols),
-    rows: String(config.rows),
-    gapXMm: String(config.gapXMm),
-    gapYMm: String(config.gapYMm),
-    startXMm: String(config.startXMm),
-    startYMm: String(config.startYMm),
     roiWPct: scan ? String((config as ScanConfigSummary).roiWPct ?? 100) : "100",
     roiHPct: scan ? String((config as ScanConfigSummary).roiHPct ?? 100) : "100",
     scanZMm: scan
@@ -206,7 +170,8 @@ function configApiBase(type: SessionTypeOpt): string {
   return "/api/scan-configs";
 }
 
-// Build the per-type request body from the shared grid fields + the form.
+// Build the per-type request body from the shared fields + the form. Grid
+// layout is no longer part of session configs — it lives on the Bed.
 function buildConfigBody(
   type: SessionTypeOpt,
   form: CreateForm,
@@ -394,12 +359,6 @@ export default function StartSessionDialog({
       const shared = {
         name: form.name.trim(),
         description: form.description.trim() || null,
-        cols: parseInt(form.cols) || 8,
-        rows: parseInt(form.rows) || 2,
-        gapXMm: parseFloat(form.gapXMm) || 750,
-        gapYMm: parseFloat(form.gapYMm) || 1000,
-        startXMm: parseFloat(form.startXMm) || 0,
-        startYMm: parseFloat(form.startYMm) || 0,
       };
       const body = buildConfigBody(sessionType, form, shared);
 
@@ -444,12 +403,6 @@ export default function StartSessionDialog({
       const shared = {
         name: form.name.trim(),
         description: form.description.trim() || null,
-        cols: parseInt(form.cols) || 8,
-        rows: parseInt(form.rows) || 2,
-        gapXMm: parseFloat(form.gapXMm) || 750,
-        gapYMm: parseFloat(form.gapYMm) || 1000,
-        startXMm: parseFloat(form.startXMm) || 0,
-        startYMm: parseFloat(form.startYMm) || 0,
       };
 
       const body = buildConfigBody(sessionType, form, shared);
@@ -658,20 +611,12 @@ function SelectStep({
                         {config.description}
                       </p>
                     )}
-                    <p className="mt-1 text-[11px] text-zinc-400">
-                      {config.rows}×{config.cols} grid &middot;{" "}
-                      {config.gapXMm / 10} cm × {config.gapYMm / 10} cm spacing
-                    </p>
                   </div>
                 </div>
 
                 {/* Expanded detail when selected */}
                 {isSelected && (
                   <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-border/60 pt-3">
-                    <Detail
-                      label="First plant"
-                      value={`${config.startXMm} × ${config.startYMm} mm`}
-                    />
                     {isWatering ? (
                       <>
                         <Detail
@@ -811,42 +756,8 @@ function CreateStep({
             </FormField>
           </section>
 
-          {/* Grid layout */}
-          <section>
-            <SectionLabel>Grid Layout</SectionLabel>
-            <div className="grid grid-cols-2 gap-3">
-              <NumField
-                label="Columns"
-                value={form.cols}
-                onChange={(v) => onField("cols", v)}
-              />
-              <NumField
-                label="Rows"
-                value={form.rows}
-                onChange={(v) => onField("rows", v)}
-              />
-              <NumField
-                label="Gap X (mm)"
-                value={form.gapXMm}
-                onChange={(v) => onField("gapXMm", v)}
-              />
-              <NumField
-                label="Gap Y (mm)"
-                value={form.gapYMm}
-                onChange={(v) => onField("gapYMm", v)}
-              />
-              <NumField
-                label="First plant X (mm)"
-                value={form.startXMm}
-                onChange={(v) => onField("startXMm", v)}
-              />
-              <NumField
-                label="First plant Y (mm)"
-                value={form.startYMm}
-                onChange={(v) => onField("startYMm", v)}
-              />
-            </div>
-          </section>
+          {/* Grid layout now lives on the Bed (Grid Layout sheet on /plants),
+              shared across all session types — not configured per session. */}
 
           {/* SCAN: capture height */}
           {sessionType === "SCAN" && (

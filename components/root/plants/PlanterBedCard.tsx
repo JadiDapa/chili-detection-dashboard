@@ -2,6 +2,7 @@ import { Droplets, Sparkles } from "lucide-react";
 import { PlantsCam } from "@/components/root/plants/PlantsCam";
 import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import { StatusBadge } from "@/components/root/plants/StatusBadge";
+import GridLayoutSheet from "@/components/root/plants/section/GridLayoutSheet";
 import Link from "next/link";
 
 type ScanResult = {
@@ -12,6 +13,7 @@ type ScanResult = {
 };
 
 type Props = {
+  bedId: number;
   label: string;
   streamUrl: string;
   status: "idle" | "scanning" | "error" | "offline";
@@ -30,6 +32,7 @@ const scanItems = [
 ] as const;
 
 export function PlanterBedCard({
+  bedId,
   label,
   streamUrl,
   status,
@@ -74,7 +77,10 @@ export function PlanterBedCard({
               Last scan {lastScan}
             </p>
           </div>
-          <StatusBadge status={status} />
+          <div className="flex shrink-0 items-center gap-2">
+            <StatusBadge status={status} />
+            <GridLayoutSheet bedId={bedId} stopPropagation />
+          </div>
         </div>
 
         <div className="border-t" />

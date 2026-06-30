@@ -1,12 +1,19 @@
 model Bed {
-    id            Int       @id @default(autoincrement())
-    name          String
-    description   String?
-    piUrl         String
-    rows          Int       @default(2)
-    cols          Int       @default(8)
-    borderMm      Float     @default(650)
-    spacingMm     Float     @default(700)
+    id          Int     @id @default(autoincrement())
+    name        String
+    description String?
+    piUrl       String
+
+    // Grid layout — single source of truth for plant positions. Editing these
+    // regenerates the Plant rows (row/col/xMm/yMm). Session configs no longer
+    // carry grid; they read it from here at session-start (see buildSnapshot).
+    rows     Int   @default(2)
+    cols     Int   @default(8)
+    gapXMm   Float @default(750.0) // column spacing (X)
+    gapYMm   Float @default(1000.0) // row spacing (Y)
+    startXMm Float @default(0.0) // first plant X (col 0)
+    startYMm Float @default(0.0) // first plant Y (row 0)
+
     lastUpdatedAt DateTime?
     plants        Plant[]
     sessions      Session[]

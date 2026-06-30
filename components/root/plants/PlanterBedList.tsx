@@ -61,6 +61,7 @@ export default function PlanterBedList() {
       {beds.map((bed) => (
         <PlanterBedCard
           key={bed.id}
+          bedId={bed.id}
           label={bed.name}
           streamUrl={bed.streamUrl}
           status={bed.status}

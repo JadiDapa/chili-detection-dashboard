@@ -7,6 +7,7 @@ import ScanningResultChart from "@/components/root/plants/section/ScanningResult
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
 import EmergencyStopButton from "@/components/root/plants/section/EmergencyStopButton";
 import ManualControlSheet from "@/components/root/plants/section/ManualControlSheet";
+import GridLayoutSheet from "@/components/root/plants/section/GridLayoutSheet";
 import SessionSidebarPanel from "@/components/root/plants/section/SessionSidebarPanel";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
@@ -28,6 +29,7 @@ export default async function PlantSections({
             subtitle="Live feed and detailed information about this planter bed"
           />
           <div className="flex shrink-0 items-center gap-2">
+            <GridLayoutSheet bedId={1} />
             <ManualControlSheet />
             <EmergencyStopButton />
             <Button className="shrink-0">

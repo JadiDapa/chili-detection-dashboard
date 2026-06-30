@@ -14,13 +14,18 @@ import {
 import { Button } from "@/components/ui/button";
 import ServoPanTiltControl from "./ServoPanTiltControl";
 import GantryControl from "./GantryControl";
+import GantryPlantGrid from "./GantryPlantGrid";
 import HardwarePanel from "./HardwarePanel";
 
 // Direct hardware control (servo pan/tilt, gantry move/home, actuator relays and
 // limit-switch readout) lives behind this right-side sheet so it stays out of the
 // main scanning view but is one click away. The panels keep their own polling and
 // "session running — disabled" guards; this only changes where they're shown.
-export default function ManualControlSheet() {
+export default function ManualControlSheet({
+  bedId = 1,
+}: {
+  bedId?: number;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -44,6 +49,7 @@ export default function ManualControlSheet() {
         <div className="flex flex-col gap-3 px-4 pb-6">
           <ServoPanTiltControl />
           <GantryControl />
+          <GantryPlantGrid bedId={bedId} />
           <HardwarePanel />
         </div>
       </SheetContent>

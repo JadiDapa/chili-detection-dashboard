@@ -144,6 +144,19 @@ export const SessionService = {
     let resolvedDatasetConfigId: number | null = null;
     let datasetConfigSnapshot: Prisma.InputJsonValue | undefined;
 
+    // Grid layout now lives on the Bed (single source of truth). Pull it once
+    // and merge it into whichever config snapshot we build below, so the RPi
+    // snapshot shape is unchanged.
+    const bed = await prisma.bed.findUnique({ where: { id: bedId } });
+    const grid = {
+      cols: bed?.cols ?? 8,
+      rows: bed?.rows ?? 2,
+      gapXMm: bed?.gapXMm ?? 750.0,
+      gapYMm: bed?.gapYMm ?? 1000.0,
+      startXMm: bed?.startXMm ?? 0.0,
+      startYMm: bed?.startYMm ?? 0.0,
+    };
+
     if (type === SessionType.SCAN) {
       // Resolve scan config: explicit id → fallback to default → none
       resolvedScanConfigId = scanConfigId ?? null;
@@ -153,7 +166,7 @@ export const SessionService = {
       }
       if (resolvedScanConfigId != null) {
         const config = await prisma.scanConfig.findUnique({ where: { id: resolvedScanConfigId } });
-        if (config) scanConfigSnapshot = ScanConfigService.buildSnapshot(config);
+        if (config) scanConfigSnapshot = ScanConfigService.buildSnapshot(config, grid);
       }
     } else if (type === SessionType.WATERING) {
       // Resolve watering config: explicit id → fallback to default → none
@@ -164,7 +177,7 @@ export const SessionService = {
       }
       if (resolvedWateringConfigId != null) {
         const config = await prisma.wateringConfig.findUnique({ where: { id: resolvedWateringConfigId } });
-        if (config) wateringConfigSnapshot = WateringService.buildSnapshot(config);
+        if (config) wateringConfigSnapshot = WateringService.buildSnapshot(config, grid);
       }
     } else {
       // Resolve dataset config: explicit id → fallback to default → none
@@ -175,7 +188,7 @@ export const SessionService = {
       }
       if (resolvedDatasetConfigId != null) {
         const config = await prisma.datasetConfig.findUnique({ where: { id: resolvedDatasetConfigId } });
-        if (config) datasetConfigSnapshot = DatasetConfigService.buildSnapshot(config);
+        if (config) datasetConfigSnapshot = DatasetConfigService.buildSnapshot(config, grid);
       }
     }
 
