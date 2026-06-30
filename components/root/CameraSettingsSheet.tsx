@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { piApi } from "@/lib/pi";
+import { piApi, type CameraControls } from "@/lib/pi";
 import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import {
   getCameraSettingsAction,
@@ -49,6 +49,7 @@ type Form = {
   contrast: number;
   saturation: number;
   sharpness: number;
+  zoom: number;
 };
 
 // Defaults reflect the greenhouse preference: manual exposure, low gain, fixed
@@ -69,7 +70,52 @@ const DEFAULTS: Form = {
   contrast: 32,
   saturation: 64,
   sharpness: 2,
+  zoom: 0,
 };
+
+// Build the camelCase DB payload from the form. Manual-only values are nulled out
+// when their mode is auto, so neither the DB nor the RPi keeps a stale number.
+function buildDbData(f: Form) {
+  return {
+    frameWidth: f.frameWidth,
+    frameHeight: f.frameHeight,
+    fps: f.fps,
+    autoExposure: f.autoExposure,
+    exposure: f.autoExposure ? null : f.exposure,
+    autoWb: f.autoWb,
+    wbTemperature: f.autoWb ? null : f.wbTemperature,
+    autofocus: f.autofocus,
+    focus: f.autofocus ? null : f.focus,
+    gain: f.gain,
+    brightness: f.brightness,
+    contrast: f.contrast,
+    saturation: f.saturation,
+    sharpness: f.sharpness,
+    zoom: f.zoom,
+  };
+}
+
+// Map the RPi's snake_case control dict back into form state (e.g. after a reset),
+// falling back to the form defaults for any control the driver reports as null.
+function controlsToForm(c: CameraControls): Form {
+  return {
+    frameWidth: c.frame_width,
+    frameHeight: c.frame_height,
+    fps: c.fps,
+    autoExposure: c.auto_exposure,
+    exposure: c.exposure ?? DEFAULTS.exposure,
+    autoWb: c.auto_wb,
+    wbTemperature: c.wb_temperature ?? DEFAULTS.wbTemperature,
+    autofocus: c.autofocus,
+    focus: c.focus ?? DEFAULTS.focus,
+    gain: c.gain ?? DEFAULTS.gain,
+    brightness: c.brightness ?? DEFAULTS.brightness,
+    contrast: c.contrast ?? DEFAULTS.contrast,
+    saturation: c.saturation ?? DEFAULTS.saturation,
+    sharpness: c.sharpness ?? DEFAULTS.sharpness,
+    zoom: c.zoom ?? DEFAULTS.zoom,
+  };
+}
 
 // 4:3 options keep the ROI overlay aligned (the overlay assumes a 4:3 frame, see
 // lib/camera.ts). "Full HD" here means 1080 lines at 4:3 = 1440×1080, not the
@@ -132,6 +178,7 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
           contrast: row.contrast ?? DEFAULTS.contrast,
           saturation: row.saturation ?? DEFAULTS.saturation,
           sharpness: row.sharpness ?? DEFAULTS.sharpness,
+          zoom: row.zoom ?? DEFAULTS.zoom,
         });
       })
       .catch(() => toast.error("Couldn't load saved camera settings"))
@@ -146,25 +193,7 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
 
   async function apply() {
     setSaving(true);
-
-    // Manual-only values are nulled out when their mode is auto, so the DB record
-    // and the RPi both treat them as "driver default" rather than a stale number.
-    const dbData = {
-      frameWidth: form.frameWidth,
-      frameHeight: form.frameHeight,
-      fps: form.fps,
-      autoExposure: form.autoExposure,
-      exposure: form.autoExposure ? null : form.exposure,
-      autoWb: form.autoWb,
-      wbTemperature: form.autoWb ? null : form.wbTemperature,
-      autofocus: form.autofocus,
-      focus: form.autofocus ? null : form.focus,
-      gain: form.gain,
-      brightness: form.brightness,
-      contrast: form.contrast,
-      saturation: form.saturation,
-      sharpness: form.sharpness,
-    };
+    const dbData = buildDbData(form);
 
     // Persist (durable; RPi re-reads on reboot) and push live to the RPi.
     // Independent: the RPi may be offline while we still want the value saved.
@@ -185,6 +214,7 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
         contrast: dbData.contrast,
         saturation: dbData.saturation,
         sharpness: dbData.sharpness,
+        zoom: dbData.zoom,
       }),
     ]);
 
@@ -200,6 +230,31 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
     }
     setPreviewKey((k) => k + 1); // reconnect the preview to the reopened camera
     toast.success("Camera settings applied");
+  }
+
+  // Real reset: tell the RPi to revert the camera to its factory defaults, then
+  // reflect the camera's reported values in the form and persist them (so the
+  // reset survives a reboot too). Needs the camera online to actually reset.
+  async function resetToFactory() {
+    setSaving(true);
+    let state;
+    try {
+      state = await piApi.resetCameraSettings();
+    } catch {
+      setSaving(false);
+      toast.error("Camera offline — can't reset to defaults");
+      return;
+    }
+    const resetForm = controlsToForm(state.controls);
+    setForm(resetForm);
+    try {
+      await saveCameraSettingsAction(bedId, buildDbData(resetForm));
+    } catch {
+      // Hardware is already reset; persistence will catch up on the next apply.
+    }
+    setSaving(false);
+    setPreviewKey((k) => k + 1);
+    toast.success("Reset to camera defaults");
   }
 
   return (
@@ -288,6 +343,15 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
               max={30}
               value={form.fps}
               onChange={(v) => set("fps", v)}
+            />
+
+            <SettingSlider
+              label="Zoom"
+              hint="Camera-specific; 0 = no zoom (clamped to the camera's minimum)"
+              min={0}
+              max={500}
+              value={form.zoom}
+              onChange={(v) => set("zoom", v)}
             />
           </section>
 
@@ -392,17 +456,18 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
           </section>
         </div>
 
-        <SheetFooter className="flex-row gap-2">
+        <SheetFooter className="gap-2">
+          <Button className="w-full" onClick={apply} disabled={saving || loading}>
+            {saving ? "Working…" : "Apply"}
+          </Button>
           <Button
             variant="outline"
-            className="flex-1"
-            onClick={() => setForm(DEFAULTS)}
+            className="w-full"
+            onClick={resetToFactory}
             disabled={saving || loading}
+            title="Revert the camera to its factory defaults"
           >
-            Reset
-          </Button>
-          <Button className="flex-1" onClick={apply} disabled={saving || loading}>
-            {saving ? "Applying…" : "Apply"}
+            Reset to camera defaults
           </Button>
         </SheetFooter>
       </SheetContent>

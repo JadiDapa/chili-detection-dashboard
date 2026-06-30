@@ -25,6 +25,7 @@ model CameraSetting {
     contrast     Int?
     saturation   Int?
     sharpness    Int?
+    zoom         Int?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt

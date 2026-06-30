@@ -234,6 +234,7 @@ export interface CameraControls {
   contrast: number | null;
   saturation: number | null;
   sharpness: number | null;
+  zoom: number | null;
 }
 
 // GET /camera/settings returns the desired controls plus the values the driver
@@ -368,6 +369,10 @@ export const piApi = {
       method: "POST",
       body: JSON.stringify(controls),
     }),
+  // Revert the camera to its factory defaults on the RPi (all auto, default
+  // colour/focus/zoom/resolution). Returns the resulting controls + actuals.
+  resetCameraSettings: () =>
+    request<CameraSettingsState>("/camera/settings/reset", { method: "POST" }),
 
   // Sensor endpoints — fall back to constant "normal" readings via stub mode
   // when the sensor returns nothing (see withStub / STUB_* above).

@@ -18,6 +18,7 @@ export type CameraSettingData = {
   contrast?: number | null;
   saturation?: number | null;
   sharpness?: number | null;
+  zoom?: number | null;
 };
 
 export const CameraSettingService = {
@@ -51,6 +52,7 @@ export const CameraSettingService = {
     contrast: number | null;
     saturation: number | null;
     sharpness: number | null;
+    zoom: number | null;
   }) {
     return {
       frame_width: c.frameWidth,
@@ -67,6 +69,7 @@ export const CameraSettingService = {
       contrast: c.contrast,
       saturation: c.saturation,
       sharpness: c.sharpness,
+      zoom: c.zoom,
     };
   },
 };
