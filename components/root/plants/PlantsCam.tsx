@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { WifiOff, RefreshCw, Camera } from "lucide-react";
 import { CrosshairOverlay } from "./CrosshairOverlay";
 import { RoiOverlay } from "./RoiOverlay";
+import { CameraSettingsSheet } from "@/components/root/CameraSettingsSheet";
 
 type StreamState = "connecting" | "live" | "error" | "offline";
 
@@ -15,6 +16,8 @@ type Props = {
   /** Centered YOLO counting region as a % of the frame. Omit / 100 = no box. */
   roiWPct?: number;
   roiHPct?: number;
+  /** When set, shows the camera-settings gear; controls this bed's camera. */
+  bedId?: number;
 };
 
 export function PlantsCam({
@@ -23,6 +26,7 @@ export function PlantsCam({
   showLiveIndicator = true,
   roiWPct = 100,
   roiHPct = 100,
+  bedId,
 }: Props) {
   const [state, setState] = useState<StreamState>("connecting");
   const [retryCount, setRetryCount] = useState(0);
@@ -136,6 +140,13 @@ export function PlantsCam({
           {label}
         </p>
       </div>
+
+      {/* ── Camera settings gear (bottom-right) ── */}
+      {bedId !== undefined && (
+        <div className="absolute right-2.5 bottom-2.5 z-10">
+          <CameraSettingsSheet bedId={bedId} />
+        </div>
+      )}
     </div>
   );
 }

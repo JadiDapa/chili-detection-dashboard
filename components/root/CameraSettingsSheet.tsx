@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { piApi } from "@/lib/pi";
+import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import {
   getCameraSettingsAction,
   saveCameraSettingsAction,
@@ -51,11 +52,11 @@ type Form = {
 };
 
 // Defaults reflect the greenhouse preference: manual exposure, low gain, fixed
-// white balance, manual focus. Resolution stays at the YOLO-aligned 640×480 (the
-// ROI overlay assumes 4:3); 1080p is available but see the note in the sheet.
+// white balance, manual focus, and Full-HD-class capture kept at 4:3 (1440×1080)
+// so the YOLO ROI overlay stays aligned while still giving detail for detection.
 const DEFAULTS: Form = {
-  frameWidth: 640,
-  frameHeight: 480,
+  frameWidth: 1440,
+  frameHeight: 1080,
   fps: 15,
   autoExposure: false,
   exposure: 156,
@@ -70,17 +71,43 @@ const DEFAULTS: Form = {
   sharpness: 2,
 };
 
+// 4:3 options keep the ROI overlay aligned (the overlay assumes a 4:3 frame, see
+// lib/camera.ts). "Full HD" here means 1080 lines at 4:3 = 1440×1080, not the
+// 16:9 1920×1080 — the 16:9 entries are offered but warn about ROI misalignment.
 const RESOLUTIONS = [
-  { label: "640 × 480 (4:3, recommended)", w: 640, h: 480 },
+  { label: "640 × 480 (4:3, fastest)", w: 640, h: 480 },
+  { label: "1280 × 960 (4:3)", w: 1280, h: 960 },
+  { label: "1440 × 1080 (Full HD, 4:3)", w: 1440, h: 1080 },
+  { label: "1600 × 1200 (4:3, 2 MP)", w: 1600, h: 1200 },
   { label: "1280 × 720 (16:9)", w: 1280, h: 720 },
   { label: "1920 × 1080 (16:9)", w: 1920, h: 1080 },
 ];
+
+// A frame is 4:3 when width·3 === height·4 (e.g. 1440×1080). Non-4:3 frames make
+// `object-cover` crop and the percentage-based ROI box drift off the real region.
+const is4by3 = (w: number, h: number) => w * 3 === h * 4;
 
 export function CameraSettingsSheet({ bedId }: { bedId: number }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Form>(DEFAULTS);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // On mobile the sheet covers the whole screen, hiding the live feed, so we show
+  // a preview inside it. On desktop the sheet is a side panel and the feed stays
+  // visible, so we skip the extra stream entirely (gated on isMobile, not just CSS).
+  const [isMobile, setIsMobile] = useState(false);
+  // Bumped after each Apply to force the preview <img> to reconnect, so it shows
+  // the freshly-reopened camera rather than the pre-change stream.
+  const [previewKey, setPreviewKey] = useState(0);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)"); // below Tailwind `lg`
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   // Load this bed's saved controls when the sheet opens (fall back to defaults).
   useEffect(() => {
@@ -171,6 +198,7 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
       toast.warning("Saved, but the camera is offline — it'll apply on reconnect");
       return;
     }
+    setPreviewKey((k) => k + 1); // reconnect the preview to the reopened camera
     toast.success("Camera settings applied");
   }
 
@@ -198,6 +226,24 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
         </SheetHeader>
 
         <div className="flex flex-col gap-6 px-4 pb-4">
+          {/* ── Live preview (mobile only — the sheet covers the feed here) ── */}
+          {isMobile && (
+            <div
+              className={`relative ${CAMERA_ASPECT_CLASS} w-full overflow-hidden rounded-lg bg-zinc-950`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                key={previewKey}
+                src={`${piApi.streamUrl()}?preview=${previewKey}`}
+                alt="Live camera preview"
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute top-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white/80 backdrop-blur-sm">
+                Live preview
+              </span>
+            </div>
+          )}
+
           {/* ── Resolution & FPS ── */}
           <section className="flex flex-col gap-4">
             <h3 className="text-sm font-semibold">Resolution & frame rate</h3>
@@ -225,10 +271,12 @@ export function CameraSettingsSheet({ bedId }: { bedId: number }) {
                   ))}
                 </SelectContent>
               </Select>
-              {form.frameWidth !== 640 && (
+              {!is4by3(form.frameWidth, form.frameHeight) && (
                 <p className="text-muted-foreground text-xs">
-                  Note: non-4:3 resolutions misalign the YOLO ROI overlay and slow
-                  detection on the Pi. Prefer 640×480 for scanning.
+                  Note: this is a 16:9 resolution — it misaligns the YOLO ROI
+                  overlay. For Full HD detail without that, use the 4:3 options
+                  (e.g. 1440×1080). Higher resolutions also slow detection on the
+                  Pi.
                 </p>
               )}
             </div>

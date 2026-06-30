@@ -47,6 +47,7 @@ export default async function PlantSections({
               streamUrl={piApi.streamUrl()}
               roiWPct={defaultConfig?.roiWPct ?? 100}
               roiHPct={defaultConfig?.roiHPct ?? 100}
+              bedId={1}
             />
           </div>
 
