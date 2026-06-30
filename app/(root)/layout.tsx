@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children }: Props) {
         <div className="flex min-h-0 flex-1">
           <DashboardSidebar user={user} />
           {/* pb on mobile leaves room for the fixed bottom tab bar */}
-          <main className="flex w-full flex-col gap-2 overflow-y-auto px-2 pt-2 pb-24 md:px-0 md:pt-2 md:pe-2 md:pb-2">
+          <main className="flex w-full flex-col gap-2 overflow-y-auto px-2 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-0 md:pt-2 md:pe-2 md:pb-2">
             {children}
           </main>
         </div>

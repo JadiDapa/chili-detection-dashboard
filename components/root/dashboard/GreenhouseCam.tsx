@@ -3,8 +3,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
+import { CameraSettingsSheet } from "@/components/root/CameraSettingsSheet";
 import {
-  Camera,
   CameraOff,
   Maximize2,
   Minus,
@@ -20,12 +20,15 @@ interface GreenhouseCamProps {
   streamUrl?: string;
   streamType?: StreamType;
   label?: string;
+  /** When set, shows the camera-settings gear; controls this bed's camera. */
+  bedId?: number;
 }
 
 export function GreenhouseCam({
   streamUrl,
   streamType = "mjpeg",
   label = "Greenhouse A — Cam 01",
+  bedId,
 }: GreenhouseCamProps) {
   const [error, setError] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -135,6 +138,7 @@ export function GreenhouseCam({
       </div>
 
       <div className="absolute right-3 bottom-3 flex flex-col items-center gap-2">
+        {bedId !== undefined && <CameraSettingsSheet bedId={bedId} />}
         <button
           onClick={() => setFullscreen((f) => !f)}
           className="bg-green/40 hover:bg-green/60 rounded-full bg-white/25 p-2 text-sm text-white/80 backdrop-blur-sm transition-colors"

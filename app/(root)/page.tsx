@@ -34,6 +34,7 @@ export default function DashboardPage() {
             streamUrl={piApi.streamUrl()}
             streamType="mjpeg"
             label="Greenhouse A — Cam 01"
+            bedId={1}
           />
 
           <WeeklyYeild />

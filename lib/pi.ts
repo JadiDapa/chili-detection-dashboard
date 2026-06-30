@@ -216,6 +216,33 @@ export interface ServoAngles {
   tilt: number;
 }
 
+// Live camera controls (snake_case to match the RPi cv2 control keys). Manual
+// values are nullable — null means "leave the driver at its default". The auto*
+// flags pick auto vs manual mode for exposure / white balance / focus.
+export interface CameraControls {
+  frame_width: number;
+  frame_height: number;
+  fps: number;
+  auto_exposure: boolean;
+  exposure: number | null;
+  gain: number | null;
+  auto_wb: boolean;
+  wb_temperature: number | null;
+  autofocus: boolean;
+  focus: number | null;
+  brightness: number | null;
+  contrast: number | null;
+  saturation: number | null;
+  sharpness: number | null;
+}
+
+// GET /camera/settings returns the desired controls plus the values the driver
+// actually granted (drivers clamp or ignore unsupported controls).
+export interface CameraSettingsState {
+  controls: CameraControls;
+  actuals: Partial<CameraControls>;
+}
+
 // ─── Fetch helper ─────────────────────────────────────────────────────────────
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -330,6 +357,17 @@ export const piApi = {
   // Camera URLs (used directly as <img> src)
   streamUrl: () => `${PI_URL}/camera/stream`,
   snapshotUrl: () => `${PI_URL}/camera/snapshot`,
+
+  // Camera controls — read current / actual values, or push a partial change.
+  // Pushing applies the controls live on the RPi immediately (the dashboard DB
+  // is persisted separately via the server action so the RPi can re-read it on
+  // reboot). The RPi re-opens the capture device, so expect a ~1s settle.
+  getCameraSettings: () => request<CameraSettingsState>("/camera/settings"),
+  setCameraSettings: (controls: Partial<CameraControls>) =>
+    request<CameraSettingsState>("/camera/settings", {
+      method: "POST",
+      body: JSON.stringify(controls),
+    }),
 
   // Sensor endpoints — fall back to constant "normal" readings via stub mode
   // when the sensor returns nothing (see withStub / STUB_* above).

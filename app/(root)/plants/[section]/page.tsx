@@ -5,11 +5,9 @@ import { CAMERA_ASPECT_CLASS } from "@/lib/camera";
 import { ScanConfigService } from "@/server/services/scan-config.service";
 import ScanningResultChart from "@/components/root/plants/section/ScanningResultChart";
 import SectionOverviewStats from "@/components/root/plants/section/SectionOverviewStats";
-import GantryControl from "@/components/root/plants/section/GantryControl";
 import EmergencyStopButton from "@/components/root/plants/section/EmergencyStopButton";
-import HardwarePanel from "@/components/root/plants/section/HardwarePanel";
-import ServoPanTiltControl from "@/components/root/plants/section/ServoPanTiltControl";
-import SessionSidebar from "@/components/root/plants/section/SessionSidebar";
+import ManualControlSheet from "@/components/root/plants/section/ManualControlSheet";
+import SessionSidebarPanel from "@/components/root/plants/section/SessionSidebarPanel";
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 
@@ -30,6 +28,7 @@ export default async function PlantSections({
             subtitle="Live feed and detailed information about this planter bed"
           />
           <div className="flex shrink-0 items-center gap-2">
+            <ManualControlSheet />
             <EmergencyStopButton />
             <Button className="shrink-0">
               <span className="hidden sm:inline">Start Session</span> <Play />
@@ -54,16 +53,11 @@ export default async function PlantSections({
           <div className="flex flex-col gap-3 py-3 pr-1 pb-4">
             <SectionOverviewStats />
             <ScanningResultChart />
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <ServoPanTiltControl />
-              <GantryControl />
-              <HardwarePanel />
-            </div>
           </div>
         </div>
       </div>
 
-      <SessionSidebar />
+      <SessionSidebarPanel />
     </main>
   );
 }

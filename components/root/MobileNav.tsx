@@ -8,7 +8,7 @@ import {
   HelpCircle,
   Activity,
   Leaf,
-  Cylinder,
+  CalendarClock,
   DatabaseZapIcon,
   Menu,
   LogOut,
@@ -33,6 +33,7 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Environments", url: "/environments", icon: Activity },
   { title: "Plants", url: "/plants", icon: Leaf },
+  { title: "Schedule", url: "/schedule", icon: CalendarClock },
   { title: "Dataset Collection", url: "/dataset", icon: DatabaseZapIcon },
 ];
 

@@ -1,0 +1,31 @@
+// Per-bed live camera controls, applied by the RPi to its OpenCV/V4L2 capture.
+// One row per Bed (bedId unique). The dashboard is the source of truth: the RPi
+// fetches this at startup so manual exposure/white-balance/focus survive reboots,
+// and the browser also pushes changes straight to the RPi for an immediate effect.
+//
+// Nullable manual values mean "leave the driver at its own default / don't touch".
+// The auto* booleans pick auto vs manual mode for exposure / white balance / focus.
+model CameraSetting {
+    id    Int @id @default(autoincrement())
+    bed   Bed @relation(fields: [bedId], references: [id], onDelete: Cascade)
+    bedId Int @unique
+
+    frameWidth  Int @default(640)
+    frameHeight Int @default(480)
+    fps         Int @default(15)
+
+    autoExposure Boolean @default(false)
+    exposure     Int?
+    gain         Int?    @default(0)
+    autoWb       Boolean @default(false)
+    wbTemperature Int?
+    autofocus    Boolean @default(false)
+    focus        Int?
+    brightness   Int?
+    contrast     Int?
+    saturation   Int?
+    sharpness    Int?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
