@@ -198,7 +198,7 @@ function PlantBox({
   if (!capture) {
     return (
       <div className="border-border/40 bg-muted/30 relative flex aspect-square items-center justify-center rounded-lg border border-dashed">
-        <span className="absolute top-1 left-1.5 text-[8px] font-medium text-zinc-500">
+        <span className="absolute top-1 left-1.5 text-[11px] font-semibold text-zinc-500">
           {String(plantNo).padStart(2, "0")}
         </span>
         <span className="text-sm text-zinc-600">—</span>
@@ -214,13 +214,13 @@ function PlantBox({
         <HoverCardTrigger asChild>
           <div
             className={cn(
-              "relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-lg border pb-3 transition-colors",
+              "relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-lg border transition-colors",
               isReady
                 ? "border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/15"
                 : "border-border/60 bg-muted hover:bg-muted/70",
             )}
           >
-            <span className="absolute top-1 left-1.5 text-[8px] font-medium text-zinc-500">
+            <span className="absolute top-1 left-1.5 text-[11px] font-semibold text-zinc-500">
               {String(plantNo).padStart(2, "0")}
             </span>
 
@@ -230,19 +230,11 @@ function PlantBox({
                 isReady ? "text-emerald-600" : "text-foreground",
               )}
             >
-              {capture.ripeCount}
+              {capture.ripeCount}/{capture.totalFruits}
             </span>
             <span className="mt-0.5 text-[7px] tracking-wide text-zinc-400 uppercase">
-              ripe
+              ripe / total
             </span>
-
-            {/* Smaller box pinned to the bottom: total fruits scanned */}
-            <div
-              className="bg-background/90 absolute bottom-1 flex items-center rounded px-1.5 py-px text-[9px] font-semibold text-zinc-500 tabular-nums shadow-sm"
-              title="Total fruits scanned"
-            >
-              {capture.totalFruits}
-            </div>
           </div>
         </HoverCardTrigger>
       </CaptureDetailDialog>
@@ -473,10 +465,10 @@ export default function ScanningResultChart() {
                   {HARVEST_RIPE_THRESHOLD} ripe)
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="bg-background/90 rounded px-1 py-px text-[8px] font-semibold text-zinc-500 shadow-sm">
-                    n
+                  <span className="text-foreground font-semibold">
+                    ripe / total
                   </span>
-                  Total fruits
+                  Fruits per plant
                 </div>
               </div>
             </>
