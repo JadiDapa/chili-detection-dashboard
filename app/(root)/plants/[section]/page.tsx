@@ -32,9 +32,6 @@ export default async function PlantSections({
             <GridLayoutSheet bedId={1} />
             <ManualControlSheet />
             <EmergencyStopButton />
-            <Button className="shrink-0">
-              <span className="hidden sm:inline">Start Session</span> <Play />
-            </Button>
           </div>
         </div>
 

@@ -34,7 +34,7 @@ export default function Navbar({ user }: { user: User }) {
           />
         </div>
         <span className="text-foreground text-xl font-black tracking-wide uppercase">
-          TE-ELEKTRO
+          TE-UNSRI
         </span>
       </Link>
 
