@@ -224,8 +224,14 @@ export default function LiveSession({
   const isWatering = sessionType === "WATERING";
   const isDataset = sessionType === "DATA_COLLECTION";
 
-  const TOTAL_SCAN_PLANTS = 16;
-  const TOTAL_WATER_COLS = 8;
+  // Progress denominators come from the session's actual grid snapshot (the Bed
+  // is the source of truth for cols/rows), not a fixed 2×8 — otherwise a bed
+  // configured differently shows a mismatched total like "9 / 8 columns".
+  const activeConfig = isWatering ? wateringConfig : scanConfig;
+  const gridCols = Number(activeConfig?.cols ?? 8);
+  const gridRows = Number(activeConfig?.rows ?? 2);
+  const TOTAL_SCAN_PLANTS = gridCols * gridRows;
+  const TOTAL_WATER_COLS = gridCols;
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
